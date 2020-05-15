@@ -1,0 +1,43 @@
+{
+  "branches": [
+    "+([0-9])?(.{+([0-9]),x}).x",
+    "master",
+    {
+      "name": "beta",
+      "prerelease": true
+    }
+  ],
+  "plugins": [
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits"
+      }
+    ],
+    [
+      "@semantic-release/exec",
+      {
+        "prepareCmd": "yarn version --new-version ${nextRelease.version} --no-git-tag-version --allow-same-version"
+      }
+    ],
+    [
+      "@semantic-release/github",
+      {
+        "githubUrl": "https://api.github.com"
+      }
+    ],
+    [
+      "@semantic-release/git",
+      {
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}",
+        "assets": ["package.json"]
+      }
+    ]
+  ]
+}

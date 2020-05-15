@@ -1,0 +1,101 @@
+import { SymmetricKey, V2 as Protocol } from 'paseto.js';
+import { v4 as uuid } from 'uuid';
+
+import User from '!/entities/User';
+import { MyRequest, Payload } from '!/types';
+
+const SECRET_B64 = process.env.SECRET_B64!;
+
+/**
+ * Encrypt payload returning the token.
+ */
+export async function toToken(user: Partial<User>): Promise<string> {
+  // Create key
+  const key = new SymmetricKey(new Protocol());
+
+  // Inject secret
+  await key.base64(SECRET_B64);
+
+  // Set token`s payload
+  const payload: Payload = { __uuid: uuid(), id: user.id! };
+
+  // Prepare payload
+  const message = JSON.stringify(payload, null, 0);
+
+  // Encrypt message returning the token
+  return key.protocol().encrypt(message, key);
+}
+
+/**
+ * Decrypt token returning the payload.
+ */
+export async function fromToken(token: string): Promise<{}> {
+  // Create key
+  const key = new SymmetricKey(new Protocol());
+
+  // Inject secret
+  await key.base64(SECRET_B64);
+
+  // Decrypt token returning message
+  const message = await key.protocol().decrypt(token, key);
+
+  // Get token`s data
+  const payload: Payload = JSON.parse(message);
+
+  // Return payload
+  return payload.id;
+}
+
+/**
+ * Find token from request header Bearer, then return related User.
+ */
+export async function getUserFromHeader(req: MyRequest) {
+  // Check existence of header
+  if (!req.headers?.authorization) {
+    return null;
+  }
+
+  // Check if header is correctly formed
+  const parts = req.headers.authorization.split(' ');
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const [scheme, token] = parts;
+
+  // Check first part
+  if (!/^Bearer$/i.test(scheme)) {
+    return null;
+  }
+
+  // Check specific for Insomnia variable
+  if (!token || token === 'null') {
+    return null;
+  }
+
+  try {
+    // Get ID from token
+    const id = await fromToken(token);
+
+    // Get User from ID (is it needed?)
+    const user = await User.findOne({
+      where: { id },
+      select: [
+        'createdAt',
+        'email',
+        'id',
+        'isDeleted',
+        'lastAccessAt',
+        'name',
+        'passwordChangeCode',
+        'passwordChangeExpires',
+        'role',
+        'updatedAt',
+      ],
+    });
+
+    return user ?? null;
+  } catch {
+    return null;
+  }
+}

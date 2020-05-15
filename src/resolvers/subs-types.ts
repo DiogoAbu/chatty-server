@@ -1,0 +1,2 @@
+export const ROOM_CREATED = 'ROOM_CREATED';
+export const MESSAGE_CREATED = 'MESSAGE_CREATED';
