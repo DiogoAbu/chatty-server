@@ -22,7 +22,7 @@
       App
     </a>
   </h3>
-  <img src="https://github.com/DiogoAbu/chatty-server/workflows/test-release/badge.svg" />
+  <img src="https://github.com/DiogoAbu/chatty-server/workflows/Test%20and%20release/badge.svg?branch=master" />
 </div>
 
 <div align="center">
