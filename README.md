@@ -1,8 +1,8 @@
 <p align="center">
   <img
     alt="Logo by Nikita Ivanov"
-    src="https://github.com/DiogoAbu/chatty/blob/develop/src/assets/logo/icon@2x.png"
-    srcset="https://github.com/DiogoAbu/chatty/blob/develop/src/assets/logo/icon@0.75x.png 0.75x, https://github.com/DiogoAbu/chatty/blob/develop/src/assets/logo/icon.png 1x, https://github.com/DiogoAbu/chatty/blob/develop/src/assets/logo/icon@1.5x.png 1.5x, https://github.com/DiogoAbu/chatty/blob/develop/src/assets/logo/icon@2x.png 2x, https://github.com/DiogoAbu/chatty/blob/develop/src/assets/logo/icon@3x.png 3x, https://github.com/DiogoAbu/chatty/blob/develop/src/assets/logo/icon@4x.png 4x"
+    src="https://github.com/DiogoAbu/chatty/blob/master/src/assets/logo/icon@2x.png"
+    srcset="https://github.com/DiogoAbu/chatty/blob/master/src/assets/logo/icon@0.75x.png 0.75x, https://github.com/DiogoAbu/chatty/blob/master/src/assets/logo/icon.png 1x, https://github.com/DiogoAbu/chatty/blob/master/src/assets/logo/icon@1.5x.png 1.5x, https://github.com/DiogoAbu/chatty/blob/master/src/assets/logo/icon@2x.png 2x, https://github.com/DiogoAbu/chatty/blob/master/src/assets/logo/icon@3x.png 3x, https://github.com/DiogoAbu/chatty/blob/master/src/assets/logo/icon@4x.png 4x"
   />
 </p>
 
@@ -39,10 +39,11 @@
 ## Development
 Want to contribute? Great, read [CONTRIBUTING.md](#) for details on our code of conduct.
 
-To fix a bug or enhancement, follow these steps:
+To start developing, follow these steps:
 
 - Fork the repo.
-- Create a new branch (`git checkout -b feat/FeatureName`).
+- Make sure you are on master (`git checkout master && git pull`).
+- Create a new branch (`git checkout -b featureName`).
 - Make the appropriate changes in the files.
 - Add the files to reflect the changes made (`git add .`).
 - Commit your changes (`git commit -m "perf: stop querying all user data"`).
@@ -52,7 +53,7 @@ To fix a bug or enhancement, follow these steps:
     - `fix: correct minor typos in code`
     - `feat(post): add reactions`
 - The commit will trigger linters and tests, check if everything finished successfully.
-- Push to the current branch (`git push`).
+- Push the current branch (`git push`).
 - Create a [Pull Request](https://github.com/DiogoAbu/chatty-server/compare) across forks.
 
 *On VS Code you can use the extension Conventional Commits (vscode-conventional-commits)*
