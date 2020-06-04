@@ -17,6 +17,7 @@ export async function toToken(user: Partial<User>): Promise<string> {
   await key.base64(SECRET_B64);
 
   // Set token`s payload
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   const payload: Payload = { __uuid: uuid(), id: user.id! };
 
   // Prepare payload
@@ -29,7 +30,7 @@ export async function toToken(user: Partial<User>): Promise<string> {
 /**
  * Decrypt token returning the payload.
  */
-export async function fromToken(token: string): Promise<{}> {
+export async function fromToken(token: string): Promise<string> {
   // Create key
   const key = new SymmetricKey(new Protocol());
 
@@ -49,7 +50,7 @@ export async function fromToken(token: string): Promise<{}> {
 /**
  * Find token from request header Bearer, then return related User.
  */
-export async function getUserFromHeader(req: MyRequest) {
+export async function getUserFromHeader(req: MyRequest): Promise<User | null> {
   // Check existence of header
   if (!req.headers?.authorization) {
     return null;
@@ -87,6 +88,7 @@ export async function getUserFromHeader(req: MyRequest) {
         'isDeleted',
         'lastAccessAt',
         'name',
+        'pictureUri',
         'passwordChangeCode',
         'passwordChangeExpires',
         'role',

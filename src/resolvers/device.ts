@@ -12,7 +12,10 @@ const log = debug.extend('device');
 export class DeviceResolver {
   @Authorized()
   @Mutation(() => Boolean)
-  async registerDevice(@Ctx() ctx: MyContext, @Arg('data') data: RegisterDeviceInput) {
+  async registerDevice(
+    @Ctx() ctx: MyContext,
+    @Arg('data') data: RegisterDeviceInput,
+  ): Promise<boolean> {
     // Signed in user
     const { id: userId } = ctx.user!;
 

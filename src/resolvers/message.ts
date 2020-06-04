@@ -39,7 +39,7 @@ export class MessageResolver {
     @Ctx() ctx: MyContext,
     @Arg('data') data: CreateMessageInput,
     @PubSub(MESSAGE_CREATED) publish: Publisher<Message>,
-  ) {
+  ): Promise<Message> {
     // Signed in user
     const { id: userId, name } = ctx.user!;
     const { roomId, messageId, content } = data;
@@ -53,7 +53,7 @@ export class MessageResolver {
     // Check if user belongs to the room
     if (!roomFound || !roomFound.members.some((e) => e.id === userId)) {
       log('Room not found (%s)', roomId);
-      throw new ApolloError('Room not found');
+      throw new ApolloError('Room not found', 'NOT_FOUND');
     }
 
     // Room name or the user that is sending the message
@@ -128,7 +128,7 @@ export class MessageResolver {
     // Check if user belongs to the room
     if (!roomFound || !roomFound.members.some((e) => e.id === userId)) {
       log('Room not found (%s)', roomId);
-      throw new ApolloError('Room not found');
+      throw new ApolloError('Room not found', 'NOT_FOUND');
     }
 
     log('Getting messages with limit %s and afterDate %s', limit, afterDate);

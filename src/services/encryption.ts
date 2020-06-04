@@ -11,7 +11,7 @@ export enum Encryptors {
 }
 
 // Active encryptor
-export const activeEncryptor = Encryptors[process.env.ENCRYPTOR || 'bcrypt'];
+export const activeEncryptor: string = Encryptors[process.env.ENCRYPTOR || 'bcrypt'];
 
 // Length to store and retrieve from password string
 const encryptorLength = 4;
@@ -27,7 +27,7 @@ export type HashPassArgs = {
  * Encrypt plain password using chosen encryption, stores encryption identifier
  * alongside the password.
  */
-export async function hashPass({ encryptor, rounds, plain }: HashPassArgs) {
+export async function hashPass({ encryptor, rounds, plain }: HashPassArgs): Promise<string> {
   let hashed = '';
 
   // Decide between chosen encrytor or default one
@@ -54,7 +54,7 @@ export type ComparePassArgs = {
 /**
  * Compare plain password with hashed one, using encryption stored in the latter.
  */
-export async function comparePass({ plain, hashed }: ComparePassArgs) {
+export async function comparePass({ plain, hashed }: ComparePassArgs): Promise<boolean> {
   // Get first part
   const encryptor = hashed.slice(0, encryptorLength);
 

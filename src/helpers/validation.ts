@@ -1,17 +1,7 @@
 import { ValidationArguments } from 'class-validator';
 
-export const messageNotEmpty = 'Should not be empty';
-
-function getPlural(value: number) {
-  return value > 1 ? 's' : '';
-}
-
-export function messageLength(args: ValidationArguments) {
+export function messageLength(args: ValidationArguments): string {
   const [min, max] = args.constraints;
-  if (min > args.value.length) {
-    return `Too short, minimum length is ${min} character${getPlural(min)}`;
-  } else if (max < args.value.length) {
-    return `Too long, maximum length is ${max} character${getPlural(max)}`;
-  }
-  return `Length should be between ${min} and ${max} characters`;
+  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+  return `${min ?? 0},${max ?? 0}`;
 }

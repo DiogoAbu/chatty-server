@@ -23,7 +23,7 @@ export default (stop: () => Promise<void>): void => {
   Object.keys(signals).forEach((signal) => {
     process.on(signal as any, () => {
       log(`process received a ${signal} signal`);
-      shutdown(signal, signals[signal]);
+      void shutdown(signal, signals[signal]);
     });
   });
 };

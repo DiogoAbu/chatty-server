@@ -5,7 +5,7 @@ import '!/services/container';
 import db from '!/services/db';
 import server from '!/services/server';
 
-(async () => {
+void (async () => {
   await db();
   await server();
 })();

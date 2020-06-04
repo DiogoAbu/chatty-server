@@ -3,23 +3,22 @@ import { ArgsType, Field, ID, InputType, Int, ObjectType } from 'type-graphql';
 
 import Message from '!/entities/Message';
 import PaginatedResponse from '!/helpers/paginated-response';
-import { messageNotEmpty } from '!/helpers/validation';
 
 @InputType()
 export class CreateMessageInput {
   @Field(() => ID)
   @IsString()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   roomId: string;
 
   @Field()
   @IsString()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   messageId: string;
 
   @Field()
   @IsString()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   content: string;
 }
 
@@ -27,7 +26,7 @@ export class CreateMessageInput {
 export class GetMessagesArgs {
   @Field(() => ID)
   @IsString()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   roomId: string;
 
   @Field(() => Int, { defaultValue: 10 })
@@ -45,7 +44,7 @@ export class GetMessagesArgs {
 export class MessageCreatedArgs {
   @Field(() => [ID])
   @IsString({ each: true })
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   roomIds: string[];
 }
 

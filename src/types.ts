@@ -6,6 +6,7 @@ import User from '!/entities/User';
 export type MyRequest = Request;
 
 export interface Payload {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   __uuid: string;
   id: string;
 }

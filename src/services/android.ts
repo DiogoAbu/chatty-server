@@ -6,7 +6,7 @@ export function sendMessage(
   options: Partial<gcm.IMessageOptions>,
   registrationTokens: string[],
   callback: (err: any, resJson: gcm.IResponseBody) => void,
-) {
+): void {
   const defaultOptions: Partial<gcm.IMessageOptions> = {
     restrictedPackageName: FCM_PACKAGE_NAME,
   };

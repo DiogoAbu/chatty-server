@@ -1,5 +1,5 @@
-import { ApolloError, ApolloServer } from 'apollo-server';
-import { buildSchema } from 'type-graphql';
+import { ApolloServer } from 'apollo-server';
+import { buildSchema, UnauthorizedError } from 'type-graphql';
 
 import User from '!/entities/User';
 import resolvers from '!/resolvers';
@@ -11,9 +11,9 @@ import { MyContext } from '!/types';
 
 const log = debug.extend('server');
 
-export default async () => {
+export default async (): Promise<{ server: ApolloServer; url: string }> => {
   const schema = await buildSchema({
-    resolvers,
+    resolvers: resolvers as any,
     authChecker,
     dateScalarMode: 'timestamp',
     nullableByDefault: true,
@@ -50,7 +50,7 @@ export default async () => {
         }
 
         // Nothing return, throw authentication error
-        throw new ApolloError("Access denied! You don't have permission for this action!");
+        throw new UnauthorizedError();
       },
     },
   });
