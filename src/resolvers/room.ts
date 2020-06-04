@@ -32,10 +32,10 @@ export class RoomResolver {
     @Ctx() ctx: MyContext,
     @Arg('data') data: CreateRoomInput,
     @PubSub(ROOM_CREATED) publish: Publisher<Room>,
-  ) {
+  ): Promise<Room> {
     // Signed in user
     const { id: userId } = ctx.user!;
-    const { name, recipientsId } = data;
+    const { name, pictureUri, recipientsId } = data;
 
     // No name equals one-to-one room, must have only one recipient
     if (!name) {
@@ -43,6 +43,7 @@ export class RoomResolver {
         log('One-to-one rooms must have only one recipient. Provide a name to create a group room');
         throw new ApolloError(
           'One-to-one rooms must have only one recipient. Provide a name to create a group room',
+          'NOT_ACCEPTABLE',
         );
       }
 
@@ -74,6 +75,7 @@ export class RoomResolver {
     const roomCreated = await Room.create({
       // Name may be null
       name,
+      pictureUri,
       members: [ctx.user!, ...(members as User[])],
     }).save();
 
@@ -87,7 +89,7 @@ export class RoomResolver {
 
   @Authorized(['read:own:room'])
   @Query(() => [Room])
-  async getRooms(@Ctx() ctx: MyContext) {
+  async getRooms(@Ctx() ctx: MyContext): Promise<Room[] | undefined> {
     // Signed in user
     const { id: userId } = ctx.user!;
 
@@ -112,7 +114,7 @@ export class RoomResolver {
   }
 
   @FieldResolver()
-  async lastMessage(@Root() room: Room) {
+  async lastMessage(@Root() room: Room): Promise<Message | undefined> {
     // Get the most recent message of the room being resolved
     return Message.findOne({
       where: { room: { id: room.id }, isDeleted: false },

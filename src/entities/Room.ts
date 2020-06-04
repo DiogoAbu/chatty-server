@@ -25,6 +25,10 @@ export default class Room extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   name?: string;
 
+  @Field()
+  @Column({ type: 'text', nullable: true })
+  pictureUri?: string;
+
   // MANY Rooms can have MANY Users
   @Field(() => [User])
   @ManyToMany(() => User, (user) => user.rooms)

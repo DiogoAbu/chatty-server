@@ -32,6 +32,10 @@ export default class User extends BaseEntity {
   name: string;
 
   @Field()
+  @Column({ type: 'text', nullable: true })
+  pictureUri?: string;
+
+  @Field()
   @Column({ type: 'text', unique: true })
   email: string;
 
@@ -108,7 +112,7 @@ export default class User extends BaseEntity {
    */
   @BeforeInsert()
   @BeforeUpdate()
-  async hashPassword() {
+  async hashPassword(): Promise<void> {
     // Only hash if password have been modified, or is new
     if (this.tempPassword === this.password) {
       return;
@@ -124,7 +128,7 @@ export default class User extends BaseEntity {
   }
 
   // @instanceMethod
-  async matchPassword(plain: string) {
+  async matchPassword(plain: string): Promise<boolean> {
     return comparePass({ plain, hashed: this.password });
   }
 }

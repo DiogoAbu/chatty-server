@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/camelcase */
+/* eslint-disable @typescript-eslint/naming-convention */
 import GraphQLJSON from 'graphql-type-json';
 import { Arg, Args, Authorized, Ctx, Mutation, Query, Resolver } from 'type-graphql';
 
@@ -22,7 +22,7 @@ export class SyncResolver {
     @Ctx() ctx: MyContext,
     @Arg('lastPulledAt', { nullable: true, description: 'Milliseconds since UNIX epoch' })
     lastPulledAt?: number,
-  ) {
+  ): Promise<SyncPullResult<Message | Room | User>> {
     // Signed in user
     const { id: userId } = ctx.user!;
 
@@ -83,13 +83,14 @@ export class SyncResolver {
       const rooms = user.rooms.map((room) => {
         // Get users and room members
         room.members.map((member) => {
-          const { id, name, email, role, followers } = member;
+          const { id, name, email, pictureUri, role, followers } = member;
 
           // Add user
           users.push({
             id,
             name,
             email,
+            pictureUri,
             role,
             is_following_me: id === user.id ? null : user.followers.some((e) => e.id === id),
             is_followed_by_me: id === user.id ? null : followers.some((e) => e.id === user.id),
@@ -128,12 +129,13 @@ export class SyncResolver {
           }),
         );
 
-        const { id, name } = room;
+        const { id, name, pictureUri } = room;
 
         // Get rooms
         return {
           id,
           name,
+          pictureUri,
           created_at: room.createdAt.getTime(),
           last_message_id: lastMessageId,
         };
@@ -153,7 +155,7 @@ export class SyncResolver {
 
   @Authorized()
   @Mutation(() => Boolean)
-  async pushChanges(@Ctx() ctx: MyContext, @Args() data: PushChangesArgs) {
+  async pushChanges(@Ctx() ctx: MyContext, @Args() data: PushChangesArgs): Promise<boolean> {
     // Signed in user
     const { id: userId } = ctx.user!;
 
@@ -173,6 +175,7 @@ export class SyncResolver {
         await User.update(userId, {
           name: userFound.name,
           email: userFound.email,
+          pictureUri: userFound.pictureUri,
         });
       }
     }
@@ -187,21 +190,23 @@ export class SyncResolver {
 
       if (user?.rooms) {
         asyncFuncs.push(
-          ...created.map(async ({ id, name }: any) => {
+          ...created.map(async ({ id, name, pictureUri }: any) => {
             return Room.create({
               id,
               name,
+              pictureUri,
             }).save();
           }),
         );
 
         asyncFuncs.push(
-          ...updated.map(async ({ id, name }: any) => {
+          ...updated.map(async ({ id, name, pictureUri }: any) => {
             if (!isMemberOfRoom(user.rooms, id, userId)) {
               return null;
             }
             return Room.update(id, {
               name,
+              pictureUri,
             });
           }),
         );

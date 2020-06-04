@@ -12,6 +12,7 @@ input CreateAccountInput {
   email: String
   name: String
   password: String
+  pictureUri: String
 }
 
 input CreateMessageInput {
@@ -22,6 +23,7 @@ input CreateMessageInput {
 
 input CreateRoomInput {
   name: String
+  pictureUri: String
   recipientsId: [ID]
 }
 
@@ -128,6 +130,7 @@ type Room {
   members: [User]
   messages: [Message]
   name: String
+  pictureUri: String
   updatedAt: Timestamp
 }
 
@@ -160,6 +163,7 @@ type User {
   isFollowingMe: Boolean
   lastAccessAt: Timestamp
   name: String
+  pictureUri: String
   publicKey: String
   role: String
   rooms: [Room]
