@@ -21,7 +21,8 @@ export class IsEmailNotUniqueConstraint implements ValidatorConstraintInterface 
 
 export function IsEmailNotUnique(
   validationOptions?: ValidationOptions,
-): (object: Record<string, unknown>, propertyName: string) => void {
+  // eslint-disable-next-line @typescript-eslint/ban-types
+): (object: object, propertyName: string) => void {
   return (object, propertyName) => {
     registerDecorator({
       target: object.constructor,
