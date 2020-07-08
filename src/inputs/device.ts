@@ -7,6 +7,10 @@ import { DevicePlatform } from '!/entities/Device';
 export class RegisterDeviceInput {
   @Field()
   @IsNotEmpty()
+  name: string;
+
+  @Field()
+  @IsNotEmpty()
   token: string;
 
   @Field(() => DevicePlatform)

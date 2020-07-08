@@ -1,7 +1,6 @@
 import { ApolloServer } from 'apollo-server';
 import { buildSchema, UnauthorizedError } from 'type-graphql';
 
-import User from '!/entities/User';
 import resolvers from '!/resolvers';
 import { fromToken, getUserFromHeader } from '!/services/authentication';
 import { authChecker } from '!/services/authorization';
@@ -30,7 +29,7 @@ export default async (): Promise<{ server: ApolloServer; url: string }> => {
         return connection.context;
       }
       return {
-        user: await getUserFromHeader(req),
+        userId: await getUserFromHeader(req),
         permissions: [],
       };
     },
@@ -39,9 +38,9 @@ export default async (): Promise<{ server: ApolloServer; url: string }> => {
         try {
           if (connectionParams.token) {
             // Get ID from token and User from ID
-            const id = await fromToken(connectionParams.token);
+            const userId = await fromToken(connectionParams.token);
             return {
-              user: await User.findOne(id),
+              userId,
               permissions: [],
             };
           }

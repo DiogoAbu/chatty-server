@@ -14,6 +14,8 @@ import {
 import Message from '!/entities/Message';
 import User from '!/entities/User';
 
+import ReadReceipt from './ReadReceipt';
+
 @ObjectType()
 @Entity('rooms')
 export default class Room extends BaseEntity {
@@ -39,6 +41,11 @@ export default class Room extends BaseEntity {
   @Field(() => [Message])
   @OneToMany(() => Message, (message) => message.room)
   messages: Message[];
+
+  // ONE Room can have MANY Messages
+  @Field(() => [ReadReceipt])
+  @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.room)
+  readReceipts: ReadReceipt[];
 
   @Column({ default: false })
   isDeleted: boolean;

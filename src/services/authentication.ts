@@ -50,7 +50,7 @@ export async function fromToken(token: string): Promise<string> {
 /**
  * Find token from request header Bearer, then return related User.
  */
-export async function getUserFromHeader(req: MyRequest): Promise<User | null> {
+export async function getUserFromHeader(req: MyRequest): Promise<string | null> {
   // Check existence of header
   if (!req.headers?.authorization) {
     return null;
@@ -76,27 +76,9 @@ export async function getUserFromHeader(req: MyRequest): Promise<User | null> {
 
   try {
     // Get ID from token
-    const id = await fromToken(token);
+    const userId = await fromToken(token);
 
-    // Get User from ID (is it needed?)
-    const user = await User.findOne({
-      where: { id },
-      select: [
-        'createdAt',
-        'email',
-        'id',
-        'isDeleted',
-        'lastAccessAt',
-        'name',
-        'pictureUri',
-        'passwordChangeCode',
-        'passwordChangeExpires',
-        'role',
-        'updatedAt',
-      ],
-    });
-
-    return user ?? null;
+    return userId ?? null;
   } catch {
     return null;
   }

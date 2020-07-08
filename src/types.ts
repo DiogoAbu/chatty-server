@@ -1,8 +1,6 @@
 import { Permission } from 'accesscontrol';
 import { Request } from 'express';
 
-import User from '!/entities/User';
-
 export type MyRequest = Request;
 
 export interface Payload {
@@ -12,22 +10,23 @@ export interface Payload {
 }
 
 export interface MyContext {
-  user: User | null;
+  userId: string | null;
   permissions: Permission[];
 }
 
 //////////
 // Sync //
 //////////
-export type RecordId = string;
-
-export type DirtyRaw<T> = Partial<T>;
-
-export type SyncTableChangeSet<T> = {
-  created?: DirtyRaw<T>[];
-  updated: DirtyRaw<T>[];
-  deleted: RecordId[];
+type SyncTableChangeSet<T> = {
+  created: Partial<T>[];
+  updated: Partial<T>[];
+  deleted: string[];
 };
-export type SyncDatabaseChangeSet<T> = { [table: string]: SyncTableChangeSet<T> };
 
-export type SyncPullResult<T> = { changes: SyncDatabaseChangeSet<T>; timestamp: number };
+export type SyncChanges = {
+  messages: SyncTableChangeSet<{ [key: string]: any }>;
+  read_receipts: SyncTableChangeSet<{ [key: string]: any }>;
+  rooms: SyncTableChangeSet<{ [key: string]: any }>;
+  users: SyncTableChangeSet<{ [key: string]: any }>;
+  room_members: SyncTableChangeSet<{ id: string; user_id: string; room_id: string }>;
+};

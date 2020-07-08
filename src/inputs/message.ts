@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ArgsType, Field, ID, InputType, Int, ObjectType } from 'type-graphql';
 
-import Message from '!/entities/Message';
+import Message, { MessageType } from '!/entities/Message';
 import PaginatedResponse from '!/helpers/paginated-response';
 
 @InputType()
@@ -19,7 +19,10 @@ export class CreateMessageInput {
   @Field()
   @IsString()
   @IsNotEmpty()
-  content: string;
+  cipher: string;
+
+  @Field(() => MessageType)
+  type: MessageType;
 }
 
 @ArgsType()
@@ -42,6 +45,14 @@ export class GetMessagesArgs {
 
 @ArgsType()
 export class MessageCreatedArgs {
+  @Field(() => [ID])
+  @IsString({ each: true })
+  @IsNotEmpty()
+  roomIds: string[];
+}
+
+@ArgsType()
+export class ReadReceiptCreatedArgs {
   @Field(() => [ID])
   @IsString({ each: true })
   @IsNotEmpty()

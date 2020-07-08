@@ -102,7 +102,7 @@
             "selector": "function"
           },
           {
-            "format": ["camelCase"],
+            "format": ["camelCase", "PascalCase"],
             "leadingUnderscore": "allow",
             "selector": "parameter"
           },
@@ -117,7 +117,7 @@
             "selector": "typeLike"
           },
           {
-            "format": ["camelCase", "PascalCase", "UPPER_CASE"],
+            "format": ["camelCase", "snake_case", "PascalCase", "UPPER_CASE"],
             "selector": "property"
           }
         ],

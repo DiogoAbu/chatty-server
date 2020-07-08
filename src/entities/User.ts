@@ -18,6 +18,7 @@ import { ROLES } from '!/services/authorization';
 import { comparePass, hashPass } from '!/services/encryption';
 
 import Device from './Device';
+import Message from './Message';
 import Room from './Room';
 
 @ObjectType()
@@ -53,6 +54,14 @@ export default class User extends BaseEntity {
   role: string;
 
   @Field()
+  @Column({ type: 'text', unique: true, nullable: true })
+  publicKey?: string;
+
+  @Field()
+  @Column({ type: 'text', unique: true, nullable: true })
+  derivedSalt?: string;
+
+  @Field()
   @Column({ type: 'timestamptz', select: false })
   lastAccessAt: Date;
 
@@ -61,9 +70,9 @@ export default class User extends BaseEntity {
   @ManyToMany(() => Room, (room) => room.members)
   rooms: Room[];
 
-  @Field()
-  @Column({ type: 'text', unique: true, nullable: true })
-  publicKey: string;
+  @Field(() => [Message])
+  @OneToMany(() => Message, (message) => message.sender)
+  messages: Message[];
 
   @ManyToMany(() => User, (user) => user.followersInverse, {
     cascade: false,

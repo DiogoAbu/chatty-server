@@ -16,12 +16,14 @@ input CreateAccountInput {
 }
 
 input CreateMessageInput {
-  content: String
+  cipher: String
   messageId: String
   roomId: ID
+  type: MessageType
 }
 
 input CreateRoomInput {
+  id: ID
   name: String
   pictureUri: String
   recipientsId: [ID]
@@ -30,6 +32,7 @@ input CreateRoomInput {
 type Device {
   createdAt: Timestamp
   id: ID
+  name: String
   platform: DevicePlatform
   token: String
   user: User
@@ -57,7 +60,7 @@ type GetMessagesResponse {
 """
 The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
 """
-scalar JSON
+scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf")
 
 input ListUsersOrder {
   email: String
@@ -70,12 +73,22 @@ input ListUsersWhere {
 }
 
 type Message {
-  content: String
+  cipher: String
   createdAt: Timestamp
   id: ID
+  readReceipts: [ReadReceipt]
   room: Room
+  sender: User
+  sentAt: Timestamp
+  type: MessageType
   updatedAt: Timestamp
-  user: User
+}
+
+"""The message types"""
+enum MessageType {
+  announcement
+  default
+  sharedKey
 }
 
 type Mutation {
@@ -94,7 +107,7 @@ type Mutation {
   pushChanges(
     changes: JSON
 
-    """Milliseconds since UNIX epoch"""
+    """Last time client pulled changes in milliseconds since UNIX epoch"""
     lastPulledAt: Float
   ): Boolean
   registerDevice(data: RegisterDeviceInput): Boolean
@@ -105,6 +118,14 @@ type Mutation {
 
   """Remove signed user as follower"""
   stopFollowing(userId: String!): Boolean
+  unregisterDevice(data: RegisterDeviceInput): Boolean
+}
+
+type PullChangesResult {
+  changes: JSON
+
+  """Last successful pull in milliseconds since UNIX epoch"""
+  timestamp: Float!
 }
 
 type Query {
@@ -113,12 +134,23 @@ type Query {
   listUsers(order: ListUsersOrder, skip: Int = 0, take: Int = 10, where: ListUsersWhere): [User]
   me: User
   pullChanges(
-    """Milliseconds since UNIX epoch"""
+    """Last time client pulled changes in milliseconds since UNIX epoch"""
     lastPulledAt: Float
-  ): JSON
+  ): PullChangesResult
+}
+
+type ReadReceipt {
+  id: ID
+  message: Message
+  receivedAt: Float
+  room: Room
+  seenAt: Float
+  updatedAt: Timestamp
+  user: User
 }
 
 input RegisterDeviceInput {
+  name: String
   platform: DevicePlatform
   token: String
 }
@@ -131,6 +163,7 @@ type Room {
   messages: [Message]
   name: String
   pictureUri: String
+  readReceipts: [ReadReceipt]
   updatedAt: Timestamp
 }
 
@@ -146,7 +179,9 @@ type SignInResponse {
 
 type Subscription {
   messageCreated(roomIds: [ID]): Message
+  readReceiptCreated(roomIds: [ID]): ReadReceipt
   roomCreated: Room
+  shouldSync(roomIds: [ID]): Boolean
 }
 
 """
@@ -156,12 +191,14 @@ scalar Timestamp
 
 type User {
   createdAt: Timestamp
+  derivedSalt: String
   devices: [Device]
   email: String
   id: ID
   isFollowedByMe: Boolean
   isFollowingMe: Boolean
   lastAccessAt: Timestamp
+  messages: [Message]
   name: String
   pictureUri: String
   publicKey: String
