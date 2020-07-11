@@ -2,7 +2,7 @@ import { SymmetricKey, V2 as Protocol } from 'paseto.js';
 import { v4 as uuid } from 'uuid';
 
 import User from '!/entities/User';
-import { Payload } from '!/types';
+import { AuthenticationPayload } from '!/types';
 
 const SECRET_B64 = process.env.SECRET_B64!;
 
@@ -18,7 +18,7 @@ export async function toToken(user: Partial<User>): Promise<string> {
 
   // Set token`s payload
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const payload: Payload = { __uuid: uuid(), id: user.id! };
+  const payload: AuthenticationPayload = { __uuid: uuid(), id: user.id! };
 
   // Prepare payload
   const message = JSON.stringify(payload, null, 0);
@@ -41,7 +41,7 @@ export async function fromToken(token: string): Promise<string> {
   const message = await key.protocol().decrypt(token, key);
 
   // Get token`s data
-  const payload: Payload = JSON.parse(message);
+  const payload: AuthenticationPayload = JSON.parse(message);
 
   // Return payload
   return payload.id;

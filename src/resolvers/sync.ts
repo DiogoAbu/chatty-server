@@ -21,11 +21,12 @@ import {
   PullChangesArgs,
   PullChangesResult,
   PushChangesArgs,
+  RoomMemberTableChangeSet,
   ShouldSyncArgs,
   ShouldSyncPayload,
 } from '!/inputs/sync';
 import debug from '!/services/debug';
-import { CustomContext, SyncChanges } from '!/types';
+import { CustomContext } from '!/types';
 
 import { SHOULD_SYNC } from './subs-types';
 
@@ -133,8 +134,12 @@ export class SyncResolver {
           }
         });
 
+        // Get last message of the room
         let lastMessageId: string | undefined;
-        let lastMessageTime: number | undefined;
+        let lastMessageCreatedAt: number | undefined;
+
+        // Get last message the user read
+        let lastChangeAt: number | undefined;
 
         // Get messages
         room.messages.map((msg) => {
@@ -152,13 +157,17 @@ export class SyncResolver {
           );
 
           if (msg.updatedAt > lastPulledDate) {
-            // Get message created date
-            const messageTime = new Date(msg.createdAt).getTime();
-
-            // Compare message with last one
-            if (!lastMessageTime || messageTime >= lastMessageTime) {
-              lastMessageTime = messageTime;
+            // Get last message of the room
+            const createdAt = msg.createdAt.getTime();
+            if (!lastMessageId || !lastMessageCreatedAt || createdAt > lastMessageCreatedAt) {
               lastMessageId = msg.id;
+              lastMessageCreatedAt = createdAt;
+            }
+
+            // Get last message the user read
+            const seenAt = msg.readReceipts.find((e) => e.user.id === userId)?.seenAt?.getTime() ?? 0;
+            if (!lastChangeAt || seenAt > lastChangeAt) {
+              lastChangeAt = seenAt;
             }
 
             messages.push({
@@ -168,7 +177,7 @@ export class SyncResolver {
               userId: msg.sender.id,
               roomId: room.id,
               sentAt: msg.sentAt.getTime(),
-              createdAt: msg.createdAt.getTime(),
+              createdAt,
             });
 
             users.set(msg.sender.id, {
@@ -190,7 +199,7 @@ export class SyncResolver {
             id,
             name,
             pictureUri,
-            lastChangeAt: lastMessageTime,
+            lastChangeAt,
             lastMessageId,
             createdAt: room.createdAt.getTime(),
           });
@@ -303,7 +312,7 @@ export class SyncResolver {
       const asyncFuncs: Promise<any>[] = [];
 
       asyncFuncs.push(
-        ...[...created, ...updated].map(async ({ userId: memberId, roomId: roomId }) => {
+        ...[...created, ...updated].map(async ({ userId: memberId, roomId }) => {
           const roomFound = await Room.findOne({
             where: { id: roomId, isDeleted: false },
             relations: ['members'],
@@ -384,15 +393,7 @@ export class SyncResolver {
 
       asyncFuncs.push(
         ...[...created, ...updated].map(
-          async ({
-            id,
-            cipher,
-            type,
-            userId: senderId,
-            roomId: roomId,
-            sentAt: sentAt,
-            createdAt: createdAt,
-          }) => {
+          async ({ id, cipher, type, userId: senderId, roomId, sentAt, createdAt }) => {
             // Can only add message for itself
             if (senderId !== userId) {
               log('Failed to add message, sent by another user');
@@ -470,10 +471,10 @@ export class SyncResolver {
       const handleReadReceipts = async ({
         id,
         userId: recipientId,
-        messageId: messageId,
-        roomId: roomId,
-        receivedAt: receivedAt,
-        seenAt: seenAt,
+        messageId,
+        roomId,
+        receivedAt,
+        seenAt,
       }: any) => {
         // Can only add read receipt for itself
         if (recipientId !== userId) {
@@ -574,7 +575,7 @@ function isMemberOfRoom(rooms: Room[], roomId: string, userId: string): boolean 
   return roomFound?.members.some((member) => member.id === userId) || false;
 }
 
-function isMemberOfNewRoom(members: SyncChanges['roomMembers'], roomId: string, userId: string): boolean {
+function isMemberOfNewRoom(members?: RoomMemberTableChangeSet, roomId?: string, userId?: string): boolean {
   return [...(members?.created || []), ...(members?.updated || [])].some((e) => {
     return e.roomId === roomId && e.userId === userId;
   });
