@@ -2,7 +2,7 @@ import { SymmetricKey, V2 as Protocol } from 'paseto.js';
 import { v4 as uuid } from 'uuid';
 
 import User from '!/entities/User';
-import { MyRequest, Payload } from '!/types';
+import { Payload } from '!/types';
 
 const SECRET_B64 = process.env.SECRET_B64!;
 
@@ -50,14 +50,16 @@ export async function fromToken(token: string): Promise<string> {
 /**
  * Find token from request header Bearer, then return related User.
  */
-export async function getUserFromHeader(req: MyRequest): Promise<string | null> {
+export async function getUserFromHeader(
+  headers: Record<string, string | string[] | undefined>,
+): Promise<string | null> {
   // Check existence of header
-  if (!req.headers?.authorization) {
+  if (!headers?.authorization) {
     return null;
   }
 
   // Check if header is correctly formed
-  const parts = req.headers.authorization.split(' ');
+  const parts = (headers.authorization as string).split(' ');
   if (parts.length !== 2) {
     return null;
   }
@@ -78,7 +80,7 @@ export async function getUserFromHeader(req: MyRequest): Promise<string | null> 
     // Get ID from token
     const userId = await fromToken(token);
 
-    return userId ?? null;
+    return userId;
   } catch {
     return null;
   }

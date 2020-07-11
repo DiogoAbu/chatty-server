@@ -1,36 +1,17 @@
 import { ApolloError } from 'apollo-server';
-import {
-  Arg,
-  Args,
-  Authorized,
-  Ctx,
-  Mutation,
-  Publisher,
-  PubSub,
-  Query,
-  Resolver,
-  ResolverFilterData,
-  Root,
-  Subscription,
-} from 'type-graphql';
+import { Arg, Args, Authorized, Ctx, Mutation, Publisher, PubSub, Query, Resolver } from 'type-graphql';
 import { FindConditions, LessThan } from 'typeorm';
 
 import Message, { MessageType } from '!/entities/Message';
-import ReadReceipt from '!/entities/ReadReceipt';
 import Room from '!/entities/Room';
 import User from '!/entities/User';
-import {
-  CreateMessageInput,
-  GetMessagesArgs,
-  GetMessagesResponse,
-  MessageCreatedArgs,
-  ReadReceiptCreatedArgs,
-} from '!/inputs/message';
+import { CreateMessageInput, GetMessagesArgs, GetMessagesResponse } from '!/inputs/message';
+import { ShouldSyncPayload } from '!/inputs/sync';
 import { sendMessage } from '!/services/android';
 import debug from '!/services/debug';
-import { MyContext } from '!/types';
+import { CustomContext } from '!/types';
 
-import { MESSAGE_CREATED, READ_RECEIPT_CREATED, SHOULD_SYNC } from './subs-types';
+import { SHOULD_SYNC } from './subs-types';
 
 const log = debug.extend('message');
 
@@ -39,9 +20,9 @@ export class MessageResolver {
   @Authorized(['create:own:message'])
   @Mutation(() => Message)
   async createMessage(
-    @Ctx() ctx: MyContext,
+    @Ctx() ctx: CustomContext,
     @Arg('data') data: CreateMessageInput,
-    @PubSub(SHOULD_SYNC) publishShouldSync: Publisher<Room[]>,
+    @PubSub(SHOULD_SYNC) publish: Publisher<ShouldSyncPayload>,
   ): Promise<Message> {
     // Signed in user
     const userId = ctx.userId!;
@@ -116,14 +97,13 @@ export class MessageResolver {
     }
 
     // Send room so other users can sync
-    await publishShouldSync([roomFound]);
-
+    await publish({ rooms: [roomFound], publisherId: userId });
     return messageCreated;
   }
 
   @Authorized(['read:own:room'])
   @Query(() => GetMessagesResponse)
-  async getMessages(@Ctx() ctx: MyContext, @Args() data: GetMessagesArgs): Promise<GetMessagesResponse> {
+  async getMessages(@Ctx() ctx: CustomContext, @Args() data: GetMessagesArgs): Promise<GetMessagesResponse> {
     const userId = ctx.userId!;
     const { afterDate, roomId, limit } = data;
 
@@ -181,36 +161,36 @@ export class MessageResolver {
     return { hasMore, cursor, items: messages };
   }
 
-  @Subscription(() => Message, {
-    topics: MESSAGE_CREATED,
-    filter: ({
-      args,
-      payload: message,
-      context: { userId },
-    }: ResolverFilterData<Message, MessageCreatedArgs, MyContext>) => {
-      // If the room is being listened and signed user is a member
-      return (
-        args.roomIds?.includes(message.room?.id) && message.room?.members?.some((e: User) => e.id === userId)
-      );
-    },
-  })
-  messageCreated(@Root() message: Message, @Args() _args: MessageCreatedArgs): Message {
-    log('New message added on room %s', message.room?.id);
-    return message;
-  }
+  // @Subscription(() => Message, {
+  //   topics: MESSAGE_CREATED,
+  //   filter: ({
+  //     args,
+  //     payload: message,
+  //     context: { userId },
+  //   }: ResolverFilterData<Message, MessageCreatedArgs, CustomContext>) => {
+  //     // If the room is being listened and signed user is a member
+  //     return (
+  //       args.roomIds?.includes(message.room?.id) && message.room?.members?.some((e: User) => e.id === userId)
+  //     );
+  //   },
+  // })
+  // messageCreated(@Root() message: Message, @Args() _args: MessageCreatedArgs): Message {
+  //   log('New message added on room %s', message.room?.id);
+  //   return message;
+  // }
 
-  @Subscription(() => ReadReceipt, {
-    topics: READ_RECEIPT_CREATED,
-    filter: ({
-      args,
-      payload: readReceipt,
-    }: ResolverFilterData<ReadReceipt, ReadReceiptCreatedArgs, MyContext>) => {
-      // If the message is being listened
-      return args.roomIds?.includes(readReceipt.room?.id);
-    },
-  })
-  readReceiptCreated(@Root() readReceipt: ReadReceipt, @Args() _args: ReadReceiptCreatedArgs): ReadReceipt {
-    log('New read receipt added on room %s', readReceipt.room?.id);
-    return readReceipt;
-  }
+  // @Subscription(() => ReadReceipt, {
+  //   topics: READ_RECEIPT_CREATED,
+  //   filter: ({
+  //     args,
+  //     payload: readReceipt,
+  //   }: ResolverFilterData<ReadReceipt, ReadReceiptCreatedArgs, CustomContext>) => {
+  //     // If the message is being listened
+  //     return args.roomIds?.includes(readReceipt.room?.id);
+  //   },
+  // })
+  // readReceiptCreated(@Root() readReceipt: ReadReceipt, @Args() _args: ReadReceiptCreatedArgs): ReadReceipt {
+  //   log('New read receipt added on room %s', readReceipt.room?.id);
+  //   return readReceipt;
+  // }
 }

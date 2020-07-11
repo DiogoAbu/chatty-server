@@ -1,6 +1,7 @@
 import GraphQLJSON from 'graphql-type-json';
 import { ArgsType, Field, ID, ObjectType } from 'type-graphql';
 
+import Room from '!/entities/Room';
 import { SyncChanges } from '!/types';
 
 @ArgsType()
@@ -27,8 +28,13 @@ export class PushChangesArgs {
   changes: SyncChanges;
 }
 
+export interface ShouldSyncPayload {
+  publisherId: string;
+  rooms: Room[];
+}
+
 @ArgsType()
 export class ShouldSyncArgs {
   @Field(() => [ID])
-  roomIds?: string[];
+  roomIds: string[];
 }

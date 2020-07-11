@@ -7,7 +7,7 @@ import Message from './Message';
 import Room from './Room';
 
 @ObjectType()
-@Entity('read_receipts')
+@Entity('readReceipts')
 export default class ReadReceipt extends BaseEntity {
   @Field(() => ID)
   @PrimaryGeneratedColumn('uuid')

@@ -4,7 +4,7 @@ import Device from '!/entities/Device';
 import User from '!/entities/User';
 import { RegisterDeviceInput } from '!/inputs/device';
 import debug from '!/services/debug';
-import { MyContext } from '!/types';
+import { CustomContext } from '!/types';
 
 const log = debug.extend('device');
 
@@ -12,7 +12,7 @@ const log = debug.extend('device');
 export class DeviceResolver {
   @Authorized()
   @Mutation(() => Boolean)
-  async registerDevice(@Ctx() ctx: MyContext, @Arg('data') data: RegisterDeviceInput): Promise<boolean> {
+  async registerDevice(@Ctx() ctx: CustomContext, @Arg('data') data: RegisterDeviceInput): Promise<boolean> {
     // Signed in user
     const userId = ctx.userId!;
 
@@ -43,7 +43,10 @@ export class DeviceResolver {
 
   @Authorized()
   @Mutation(() => Boolean)
-  async unregisterDevice(@Ctx() ctx: MyContext, @Arg('data') data: RegisterDeviceInput): Promise<boolean> {
+  async unregisterDevice(
+    @Ctx() ctx: CustomContext,
+    @Arg('data') data: RegisterDeviceInput,
+  ): Promise<boolean> {
     // Signed in user
     const userId = ctx.userId!;
 

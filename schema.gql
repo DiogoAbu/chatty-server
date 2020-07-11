@@ -178,9 +178,6 @@ type SignInResponse {
 }
 
 type Subscription {
-  messageCreated(roomIds: [ID]): Message
-  readReceiptCreated(roomIds: [ID]): ReadReceipt
-  roomCreated: Room
   shouldSync(roomIds: [ID]): Boolean
 }
 

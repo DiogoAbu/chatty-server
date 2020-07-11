@@ -15,7 +15,7 @@ import { toToken } from '!/services/authentication';
 import { ac } from '!/services/authorization';
 import debug from '!/services/debug';
 import mailer from '!/services/mailer';
-import { MyContext } from '!/types';
+import { CustomContext } from '!/types';
 
 const log = debug.extend('user');
 const DAYS = parseInt(process.env.PASSWORD_CHANGE_EXPIRE_DAYS!, 10) || 1;
@@ -24,7 +24,7 @@ const DAYS = parseInt(process.env.PASSWORD_CHANGE_EXPIRE_DAYS!, 10) || 1;
 export class UserResolver {
   @Authorized(['read:own:account'])
   @Query(() => User)
-  async me(@Ctx() ctx: MyContext): Promise<User> {
+  async me(@Ctx() ctx: CustomContext): Promise<User> {
     // Signed in user
     const userId = ctx.userId!;
 
@@ -168,7 +168,7 @@ export class UserResolver {
   })
   async startFollowing(
     @Arg('userId', { nullable: false }) userIdToFollow: string,
-    @Ctx() ctx: MyContext,
+    @Ctx() ctx: CustomContext,
   ): Promise<boolean> {
     // Signed in user
     const userId = ctx.userId!;
@@ -202,7 +202,7 @@ export class UserResolver {
   })
   async stopFollowing(
     @Arg('userId', { nullable: false }) userIdToFollow: string,
-    @Ctx() ctx: MyContext,
+    @Ctx() ctx: CustomContext,
   ): Promise<boolean> {
     // Signed in user
     const userId = ctx.userId!;
@@ -263,7 +263,7 @@ export class UserResolver {
     nullable: true,
     description: 'If user is following the signed user',
   })
-  async isFollowingMe(@Root() user: User, @Ctx() ctx: MyContext): Promise<boolean | null> {
+  async isFollowingMe(@Root() user: User, @Ctx() ctx: CustomContext): Promise<boolean | null> {
     // Signed in user
     const userId = ctx.userId!;
 
@@ -285,7 +285,7 @@ export class UserResolver {
     nullable: true,
     description: 'If signed user is following the user',
   })
-  async isFollowedByMe(@Root() user: User, @Ctx() ctx: MyContext): Promise<boolean | null> {
+  async isFollowedByMe(@Root() user: User, @Ctx() ctx: CustomContext): Promise<boolean | null> {
     // Signed in user
     const userId = ctx.userId!;
 

@@ -43,21 +43,21 @@ export class GetMessagesArgs {
   afterDate?: Date;
 }
 
-@ArgsType()
-export class MessageCreatedArgs {
-  @Field(() => [ID])
-  @IsString({ each: true })
-  @IsNotEmpty()
-  roomIds: string[];
-}
+// @ArgsType()
+// export class MessageCreatedArgs {
+//   @Field(() => [ID])
+//   @IsString({ each: true })
+//   @IsNotEmpty()
+//   roomIds: string[];
+// }
 
-@ArgsType()
-export class ReadReceiptCreatedArgs {
-  @Field(() => [ID])
-  @IsString({ each: true })
-  @IsNotEmpty()
-  roomIds: string[];
-}
+// @ArgsType()
+// export class ReadReceiptCreatedArgs {
+//   @Field(() => [ID])
+//   @IsString({ each: true })
+//   @IsNotEmpty()
+//   roomIds: string[];
+// }
 
 @ObjectType()
 export class GetMessagesResponse extends PaginatedResponse(Message) {}

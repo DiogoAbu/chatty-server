@@ -1,7 +1,4 @@
 import { Permission } from 'accesscontrol';
-import { Request } from 'express';
-
-export type MyRequest = Request;
 
 export interface Payload {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -9,7 +6,7 @@ export interface Payload {
   id: string;
 }
 
-export interface MyContext {
+export interface CustomContext {
   userId: string | null;
   permissions: Permission[];
 }
@@ -25,8 +22,8 @@ type SyncTableChangeSet<T> = {
 
 export type SyncChanges = {
   messages: SyncTableChangeSet<{ [key: string]: any }>;
-  read_receipts: SyncTableChangeSet<{ [key: string]: any }>;
+  readReceipts: SyncTableChangeSet<{ [key: string]: any }>;
   rooms: SyncTableChangeSet<{ [key: string]: any }>;
   users: SyncTableChangeSet<{ [key: string]: any }>;
-  room_members: SyncTableChangeSet<{ id: string; user_id: string; room_id: string }>;
+  roomMembers: SyncTableChangeSet<{ id: string; userId: string; roomId: string }>;
 };

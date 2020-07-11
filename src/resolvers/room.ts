@@ -9,19 +9,18 @@ import {
   PubSub,
   Query,
   Resolver,
-  ResolverFilterData,
   Root,
-  Subscription,
 } from 'type-graphql';
 
 import Message from '!/entities/Message';
 import Room from '!/entities/Room';
 import User from '!/entities/User';
 import { CreateRoomInput } from '!/inputs/room';
+import { ShouldSyncPayload } from '!/inputs/sync';
 import debug from '!/services/debug';
-import { MyContext } from '!/types';
+import { CustomContext } from '!/types';
 
-import { ROOM_CREATED, SHOULD_SYNC } from './subs-types';
+import { SHOULD_SYNC } from './subs-types';
 
 const log = debug.extend('room');
 
@@ -99,9 +98,9 @@ export class RoomResolver {
   @Authorized(['create:own:room'])
   @Mutation(() => Room)
   async createRoom(
-    @Ctx() ctx: MyContext,
+    @Ctx() ctx: CustomContext,
     @Arg('data') data: CreateRoomInput,
-    @PubSub(SHOULD_SYNC) publishShouldSync: Publisher<Room[]>,
+    @PubSub(SHOULD_SYNC) publish: Publisher<ShouldSyncPayload>,
   ): Promise<Room> {
     // Signed in user
     const userId = ctx.userId!;
@@ -109,14 +108,14 @@ export class RoomResolver {
     const roomCreated = await createRoom(userId, data);
 
     // Send room so other users can sync
-    await publishShouldSync([roomCreated]);
+    await publish({ rooms: [roomCreated], publisherId: userId });
 
     return roomCreated;
   }
 
   @Authorized(['read:own:room'])
   @Query(() => [Room])
-  async getRooms(@Ctx() ctx: MyContext): Promise<Room[] | undefined> {
+  async getRooms(@Ctx() ctx: CustomContext): Promise<Room[] | undefined> {
     // Signed in user
     const userId = ctx.userId!;
 
@@ -128,17 +127,17 @@ export class RoomResolver {
     return user?.rooms;
   }
 
-  @Subscription(() => Room, {
-    topics: ROOM_CREATED,
-    filter: ({ payload: room, context: { userId } }: ResolverFilterData<Room, unknown, MyContext>) => {
-      // Signed user is a member
-      return room.members?.some((e: User) => e.id === userId);
-    },
-  })
-  roomCreated(@Root() room: Room): Room {
-    log('New room added %s', room.id);
-    return room;
-  }
+  // @Subscription(() => Room, {
+  //   topics: ROOM_CREATED,
+  //   filter: ({ payload: room, context: { userId } }: ResolverFilterData<Room, unknown, CustomContext>) => {
+  //     // Signed user is a member
+  //     return room.members?.some((e: User) => e.id === userId);
+  //   },
+  // })
+  // roomCreated(@Root() room: Room): Room {
+  //   log('New room added %s', room.id);
+  //   return room;
+  // }
 
   @FieldResolver()
   async lastMessage(@Root() room: Room): Promise<Message | undefined> {

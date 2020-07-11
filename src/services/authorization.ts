@@ -4,7 +4,7 @@ import { AuthChecker } from 'type-graphql';
 
 import User from '!/entities/User';
 
-import { MyContext } from '../types';
+import { CustomContext } from '../types';
 
 /**
  * In the example below a Guest can create an Account setting all it's properties, but the role.
@@ -65,7 +65,7 @@ export const ROLES = ac.getRoles();
 /**
  * Check if user is signed-in, then check if has permission for the actions and resource passed.
  */
-export const authChecker: AuthChecker<MyContext, string> = async ({ context }, roles) => {
+export const authChecker: AuthChecker<CustomContext, string> = async ({ context }, roles) => {
   const { userId } = context;
 
   // Not signed-in

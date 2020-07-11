@@ -17,9 +17,15 @@ import ReadReceipt from '!/entities/ReadReceipt';
 import Room from '!/entities/Room';
 import User from '!/entities/User';
 import getChanges from '!/helpers/get-changes';
-import { PullChangesArgs, PullChangesResult, PushChangesArgs, ShouldSyncArgs } from '!/inputs/sync';
+import {
+  PullChangesArgs,
+  PullChangesResult,
+  PushChangesArgs,
+  ShouldSyncArgs,
+  ShouldSyncPayload,
+} from '!/inputs/sync';
 import debug from '!/services/debug';
-import { MyContext, SyncChanges } from '!/types';
+import { CustomContext, SyncChanges } from '!/types';
 
 import { SHOULD_SYNC } from './subs-types';
 
@@ -31,7 +37,7 @@ const SEPARATOR = ',';
 export class SyncResolver {
   @Authorized()
   @Query(() => PullChangesResult)
-  async pullChanges(@Ctx() ctx: MyContext, @Args() data: PullChangesArgs): Promise<PullChangesResult> {
+  async pullChanges(@Ctx() ctx: CustomContext, @Args() data: PullChangesArgs): Promise<PullChangesResult> {
     // Signed in user
     const userId = ctx.userId!;
 
@@ -58,12 +64,12 @@ export class SyncResolver {
           updated: [],
           deleted: [],
         },
-        read_receipts: {
+        readReceipts: {
           created: [],
           updated: [],
           deleted: [],
         },
-        room_members: {
+        roomMembers: {
           created: [],
           updated: [],
           deleted: [],
@@ -107,11 +113,11 @@ export class SyncResolver {
               id,
               name,
               email,
-              picture_uri: pictureUri,
-              public_key: publicKey,
+              pictureUri,
+              publicKey,
               role,
-              is_following_me: id === user.id ? null : user.followers.some((e) => e.id === id),
-              is_followed_by_me: id === user.id ? null : followers.some((e) => e.id === user.id),
+              isFollowingMe: id === user.id ? null : user.followers.some((e) => e.id === id),
+              isFollowedByMe: id === user.id ? null : followers.some((e) => e.id === user.id),
             });
           }
 
@@ -121,8 +127,8 @@ export class SyncResolver {
             // Add member
             roomMembers.set(id, {
               id,
-              room_id: room.id,
-              user_id: member.id,
+              roomId: room.id,
+              userId: member.id,
             });
           }
         });
@@ -136,11 +142,11 @@ export class SyncResolver {
             ...msg.readReceipts.map((receipt) => {
               return {
                 id: receipt.id,
-                user_id: receipt.user.id,
-                room_id: room.id,
-                message_id: msg.id,
-                received_at: receipt.receivedAt?.getTime(),
-                seen_at: receipt.seenAt?.getTime(),
+                userId: receipt.user.id,
+                roomId: room.id,
+                messageId: msg.id,
+                receivedAt: receipt.receivedAt?.getTime(),
+                seenAt: receipt.seenAt?.getTime(),
               };
             }),
           );
@@ -159,18 +165,18 @@ export class SyncResolver {
               id: msg.id,
               cipher: msg.cipher,
               type: msg.type,
-              user_id: msg.sender.id,
-              room_id: room.id,
-              sent_at: msg.sentAt.getTime(),
-              created_at: msg.createdAt.getTime(),
+              userId: msg.sender.id,
+              roomId: room.id,
+              sentAt: msg.sentAt.getTime(),
+              createdAt: msg.createdAt.getTime(),
             });
 
             users.set(msg.sender.id, {
               id: msg.sender.id,
               name: msg.sender.name,
               email: msg.sender.email,
-              picture_uri: msg.sender.pictureUri,
-              public_key: msg.sender.publicKey,
+              pictureUri: msg.sender.pictureUri,
+              publicKey: msg.sender.publicKey,
               role: msg.sender.role,
             });
           }
@@ -183,10 +189,10 @@ export class SyncResolver {
           rooms.push({
             id,
             name,
-            picture_uri: pictureUri,
-            last_change_at: lastMessageTime,
-            last_message_id: lastMessageId,
-            created_at: room.createdAt.getTime(),
+            pictureUri,
+            lastChangeAt: lastMessageTime,
+            lastMessageId,
+            createdAt: room.createdAt.getTime(),
           });
         }
       });
@@ -194,8 +200,8 @@ export class SyncResolver {
       result.changes.users = getChanges([...users.values()]);
       result.changes.rooms = getChanges(rooms);
       result.changes.messages = getChanges(messages);
-      result.changes.read_receipts = getChanges(readReceipts);
-      result.changes.room_members = getChanges([...roomMembers.values()]);
+      result.changes.readReceipts = getChanges(readReceipts);
+      result.changes.roomMembers = getChanges([...roomMembers.values()]);
     }
 
     // Get current timestamp
@@ -207,9 +213,9 @@ export class SyncResolver {
   @Authorized()
   @Mutation(() => Boolean)
   async pushChanges(
-    @Ctx() ctx: MyContext,
+    @Ctx() ctx: CustomContext,
     @Args() data: PushChangesArgs,
-    @PubSub(SHOULD_SYNC) publishShouldSync: Publisher<Room[]>,
+    @PubSub(SHOULD_SYNC) publish: Publisher<ShouldSyncPayload>,
   ): Promise<boolean> {
     // Signed in user
     const userId = ctx.userId!;
@@ -232,9 +238,9 @@ export class SyncResolver {
         await User.update(userId, {
           name: userFound.name,
           email: userFound.email,
-          pictureUri: userFound.picture_uri,
-          publicKey: userFound.public_key,
-          derivedSalt: userFound.derived_salt,
+          pictureUri: userFound.pictureUri,
+          publicKey: userFound.publicKey,
+          derivedSalt: userFound.derivedSalt,
         });
       }
     }
@@ -253,7 +259,7 @@ export class SyncResolver {
           ...[...created, ...updated].map(async ({ id, name, pictureUri }) => {
             if (
               !isMemberOfRoom(user.rooms, id!, userId) &&
-              !isMemberOfNewRoom(changes.room_members, id!, userId)
+              !isMemberOfNewRoom(changes.roomMembers, id!, userId)
             ) {
               return null;
             }
@@ -292,12 +298,12 @@ export class SyncResolver {
       );
     }
 
-    if (changes.room_members) {
-      const { created = [], updated = [], deleted = [] } = changes.room_members;
+    if (changes.roomMembers) {
+      const { created = [], updated = [], deleted = [] } = changes.roomMembers;
       const asyncFuncs: Promise<any>[] = [];
 
       asyncFuncs.push(
-        ...[...created, ...updated].map(async ({ user_id: memberId, room_id: roomId }) => {
+        ...[...created, ...updated].map(async ({ userId: memberId, roomId: roomId }) => {
           const roomFound = await Room.findOne({
             where: { id: roomId, isDeleted: false },
             relations: ['members'],
@@ -311,7 +317,7 @@ export class SyncResolver {
           // Can only change members of room that he's member of
           if (
             !roomFound.members.some((e) => e.id === userId) &&
-            !isMemberOfNewRoom(changes.room_members, roomFound.id, userId)
+            !isMemberOfNewRoom(changes.roomMembers, roomFound.id, userId)
           ) {
             log('Failed to add member, not a room member');
             return null;
@@ -382,10 +388,10 @@ export class SyncResolver {
             id,
             cipher,
             type,
-            user_id: senderId,
-            room_id: roomId,
-            sent_at: sentAt,
-            created_at: createdAt,
+            userId: senderId,
+            roomId: roomId,
+            sentAt: sentAt,
+            createdAt: createdAt,
           }) => {
             // Can only add message for itself
             if (senderId !== userId) {
@@ -412,7 +418,7 @@ export class SyncResolver {
             // Check if user belongs to the room
             if (
               !roomFound.members.some((e) => e.id === userFound.id) &&
-              !isMemberOfNewRoom(changes.room_members, roomFound.id, userFound.id)
+              !isMemberOfNewRoom(changes.roomMembers, roomFound.id, userFound.id)
             ) {
               log('Failed to add message, not a room member');
               return null;
@@ -457,17 +463,17 @@ export class SyncResolver {
       );
     }
 
-    if (changes.read_receipts) {
-      const { created = [], updated = [], deleted = [] } = changes.read_receipts;
+    if (changes.readReceipts) {
+      const { created = [], updated = [], deleted = [] } = changes.readReceipts;
       const asyncFuncs: Promise<any>[] = [];
 
       const handleReadReceipts = async ({
         id,
-        user_id: recipientId,
-        message_id: messageId,
-        room_id: roomId,
-        received_at: receivedAt,
-        seen_at: seenAt,
+        userId: recipientId,
+        messageId: messageId,
+        roomId: roomId,
+        receivedAt: receivedAt,
+        seenAt: seenAt,
       }: any) => {
         // Can only add read receipt for itself
         if (recipientId !== userId) {
@@ -496,7 +502,7 @@ export class SyncResolver {
           id,
           user: { id: recipientId },
           message: { id: messageId },
-          room: { id: roomId },
+          room: roomFound,
           receivedAt: receivedAtDate || undefined,
           seenAt: seenAtDate || undefined,
         }).save();
@@ -532,7 +538,9 @@ export class SyncResolver {
     }
 
     // Send room so other users can sync
-    await publishShouldSync([...roomsToPublish.values()]);
+    const rooms = [...roomsToPublish.values()];
+    log('push - publish');
+    await publish({ rooms, publisherId: userId });
 
     return true;
   }
@@ -540,16 +548,23 @@ export class SyncResolver {
   @Subscription(() => Boolean, {
     topics: SHOULD_SYNC,
     filter: ({
-      payload: rooms,
+      payload: { rooms, publisherId },
       args: { roomIds },
       context: { userId },
-    }: ResolverFilterData<Room[], ShouldSyncArgs, MyContext>) => {
+    }: ResolverFilterData<ShouldSyncPayload, ShouldSyncArgs, CustomContext>) => {
+      if (userId === publisherId) {
+        log('Skip self subscription');
+        return false;
+      }
       return rooms?.some((room) => {
-        return roomIds?.includes(room.id) || room?.members?.some((member) => member.id === userId);
+        const isListeningTo = roomIds?.includes(room.id);
+        const isMemberOf = room?.members?.some((member) => member.id === userId);
+        log('Subscription filter', { isListeningTo, isMemberOf });
+        return isListeningTo || isMemberOf;
       });
     },
   })
-  shouldSync(@Root() _rooms: Room[], @Args() _args: ShouldSyncArgs): boolean {
+  shouldSync(@Root() _payload: ShouldSyncPayload, @Args() _args: ShouldSyncArgs): boolean {
     return true;
   }
 }
@@ -559,8 +574,8 @@ function isMemberOfRoom(rooms: Room[], roomId: string, userId: string): boolean 
   return roomFound?.members.some((member) => member.id === userId) || false;
 }
 
-function isMemberOfNewRoom(members: SyncChanges['room_members'], roomId: string, userId: string): boolean {
+function isMemberOfNewRoom(members: SyncChanges['roomMembers'], roomId: string, userId: string): boolean {
   return [...(members?.created || []), ...(members?.updated || [])].some((e) => {
-    return e.room_id === roomId && e.user_id === userId;
+    return e.roomId === roomId && e.userId === userId;
   });
 }
