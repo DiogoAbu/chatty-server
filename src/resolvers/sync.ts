@@ -21,6 +21,7 @@ import {
   PullChangesArgs,
   PullChangesResult,
   PushChangesArgs,
+  RoomChanges,
   RoomMemberTableChangeSet,
   ShouldSyncArgs,
   ShouldSyncPayload,
@@ -98,7 +99,7 @@ export class SyncResolver {
     if (user?.rooms.length) {
       const messages: any[] = [];
       const readReceipts: any[] = [];
-      const rooms: any[] = [];
+      const rooms: RoomChanges[] = [];
 
       const users = new Map<string, any>();
       const roomMembers = new Map<string, any>();
@@ -136,10 +137,10 @@ export class SyncResolver {
 
         // Get last message of the room
         let lastMessageId: string | undefined;
-        let lastMessageCreatedAt: number | undefined;
-
-        // Get last message the user read
         let lastChangeAt: number | undefined;
+
+        // Get time of the last message the user read
+        let lastReadAt: number | undefined;
 
         // Get messages
         room.messages.map((msg) => {
@@ -159,15 +160,17 @@ export class SyncResolver {
           if (msg.updatedAt > lastPulledDate) {
             // Get last message of the room
             const createdAt = msg.createdAt.getTime();
-            if (!lastMessageId || !lastMessageCreatedAt || createdAt > lastMessageCreatedAt) {
-              lastMessageId = msg.id;
-              lastMessageCreatedAt = createdAt;
-            }
+            if (msg.type !== MessageType.sharedKey) {
+              if (!lastMessageId || !lastChangeAt || createdAt > lastChangeAt) {
+                lastMessageId = msg.id;
+                lastChangeAt = createdAt;
+              }
 
-            // Get last message the user read
-            const seenAt = msg.readReceipts.find((e) => e.user.id === userId)?.seenAt?.getTime() ?? 0;
-            if (!lastChangeAt || seenAt > lastChangeAt) {
-              lastChangeAt = seenAt;
+              // Get last message the user read
+              const seenAt = msg.readReceipts.find((e) => e.user.id === userId)?.seenAt?.getTime() ?? 0;
+              if (!lastReadAt || seenAt > lastReadAt) {
+                lastReadAt = seenAt;
+              }
             }
 
             messages.push({
@@ -199,6 +202,7 @@ export class SyncResolver {
             id,
             name,
             pictureUri,
+            lastReadAt,
             lastChangeAt,
             lastMessageId,
             createdAt: room.createdAt.getTime(),
@@ -309,82 +313,78 @@ export class SyncResolver {
 
     if (changes.roomMembers) {
       const { created = [], updated = [], deleted = [] } = changes.roomMembers;
-      const asyncFuncs: Promise<any>[] = [];
 
-      asyncFuncs.push(
-        ...[...created, ...updated].map(async ({ userId: memberId, roomId }) => {
-          const roomFound = await Room.findOne({
-            where: { id: roomId, isDeleted: false },
-            relations: ['members'],
-          });
+      const uniqueRoomIdWithUsers = new Map<string, User[]>();
 
-          if (!roomFound) {
-            log('Failed to add member, room not found');
-            return null;
-          }
-
-          // Can only change members of room that he's member of
-          if (
-            !roomFound.members.some((e) => e.id === userId) &&
-            !isMemberOfNewRoom(changes.roomMembers, roomFound.id, userId)
-          ) {
-            log('Failed to add member, not a room member');
-            return null;
-          }
-
-          const member = await User.findOne({ where: { id: memberId, isDeleted: false } });
-          if (!member) {
+      const roomIdWithUsers = await Promise.all(
+        [...created, ...updated].map(async (roomMember) => {
+          const user = await User.findOne({ where: { id: roomMember.userId, isDeleted: false } });
+          if (!user) {
             log('Failed to add member, member does not exist');
             return null;
           }
-
-          // Add new member
-          if (!roomFound?.members.some((e) => e.id === member.id)) {
-            roomFound?.members.push(member);
-          }
-
-          const room = await roomFound?.save();
-
-          roomsToPublish.set(room.id, room);
-
-          return room;
+          return { roomId: roomMember.roomId!, user };
         }),
       );
 
-      asyncFuncs.push(
-        ...deleted.map(async (id: string) => {
-          const [roomId, memberId] = id.split(SEPARATOR);
+      roomIdWithUsers.map((each) => {
+        if (each) {
+          const prev = uniqueRoomIdWithUsers.get(each.roomId) || [];
+          uniqueRoomIdWithUsers.set(each.roomId, [...prev, each.user]);
+        }
+      });
 
-          // Can only remove self from room
-          if (memberId !== userId) {
-            return null;
-          }
+      for (const roomId of uniqueRoomIdWithUsers.keys()) {
+        const users = uniqueRoomIdWithUsers.get(roomId);
+        if (!users?.length) {
+          continue;
+        }
 
-          const roomFound = await Room.findOne({
-            where: { id: roomId, isDeleted: false },
-            relations: ['members'],
-          });
-          if (!roomFound) {
-            return null;
-          }
+        const roomFound = await Room.findOne({
+          where: { id: roomId, isDeleted: false },
+          relations: ['members'],
+        });
+        if (!roomFound) {
+          log('Failed to add member, room not found');
+          continue;
+        }
 
-          const index = roomFound.members.findIndex((e) => e.id === memberId);
-          if (index >= 0) {
-            roomFound.members.splice(index, 1);
-          }
+        const newMembers = users.filter((user) => !roomFound.members.some((member) => member.id === user.id));
+        roomFound.members.push(...newMembers);
 
-          return roomFound.save();
-        }),
-      );
+        const room = await roomFound.save();
+        roomsToPublish.set(room.id, room);
+      }
 
-      await Promise.all(
-        asyncFuncs.map(async (p) =>
-          p.catch((err) => {
-            console.log(err);
-            return null;
-          }),
-        ),
-      );
+      // Deleted
+      const uniqueRoomIdWithFormerUsers = new Map<string, string[]>();
+
+      deleted.map((id) => {
+        const [roomId, memberId] = id.split(SEPARATOR);
+        const prev = uniqueRoomIdWithFormerUsers.get(roomId) || [];
+        uniqueRoomIdWithFormerUsers.set(roomId, [...prev, memberId]);
+      });
+
+      for (const roomId of uniqueRoomIdWithFormerUsers.keys()) {
+        const formerUserIds = uniqueRoomIdWithFormerUsers.get(roomId);
+        if (!formerUserIds?.length) {
+          continue;
+        }
+
+        const roomFound = await Room.findOne({
+          where: { id: roomId, isDeleted: false },
+          relations: ['members'],
+        });
+        if (!roomFound) {
+          log('Failed to remove member, room not found');
+          continue;
+        }
+
+        roomFound.members = roomFound.members.filter((e) => !formerUserIds.includes(e.id));
+
+        const room = await roomFound.save();
+        roomsToPublish.set(room.id, room);
+      }
     }
 
     if (changes.messages) {
@@ -465,7 +465,7 @@ export class SyncResolver {
     }
 
     if (changes.readReceipts) {
-      const { created = [], updated = [], deleted = [] } = changes.readReceipts;
+      const { created = [], updated = [] } = changes.readReceipts;
       const asyncFuncs: Promise<any>[] = [];
 
       const handleReadReceipts = async ({
@@ -516,17 +516,6 @@ export class SyncResolver {
       asyncFuncs.push(...created.map(handleReadReceipts));
 
       asyncFuncs.push(...updated.map(handleReadReceipts));
-
-      asyncFuncs.push(
-        ...deleted.map(async (id) => {
-          return ReadReceipt.update(
-            { id, user: { id: userId } },
-            {
-              isDeleted: true,
-            },
-          );
-        }),
-      );
 
       await Promise.all(
         asyncFuncs.map(async (p) =>

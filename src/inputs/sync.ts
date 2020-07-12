@@ -76,7 +76,7 @@ export class RoomChanges extends DatabaseKeys {
   pictureUri?: string;
 
   @Field()
-  sharedKey?: string;
+  lastReadAt?: number;
 
   @Field()
   lastChangeAt?: number;
