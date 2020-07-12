@@ -239,6 +239,7 @@ type RoomChanges {
   id: ID
   lastChangeAt: Float
   lastMessageId: ID
+  lastReadAt: Float
   name: String
   pictureUri: String
 }
@@ -250,6 +251,7 @@ input RoomChangesInput {
   id: ID
   lastChangeAt: Float
   lastMessageId: ID
+  lastReadAt: Float
   name: String
   pictureUri: String
 }
