@@ -93,6 +93,9 @@ export class SyncResolver {
       .leftJoinAndSelect('user.followers', 'follower')
       .leftJoinAndSelect('member.followers', 'memberFollower')
       .where('user.id = :userId AND user.isDeleted = false', { userId })
+      .orderBy({
+        'message.createdAt': 'DESC',
+      })
       .getOne();
 
     // Check for rooms
@@ -137,7 +140,7 @@ export class SyncResolver {
 
         // Get last message of the room
         let lastMessageId: string | undefined;
-        let lastChangeAt: number | undefined;
+        let lastChangeAt = room.createdAt.getTime();
 
         // Get time of the last message the user read
         let lastReadAt: number | undefined;
@@ -157,22 +160,22 @@ export class SyncResolver {
             }),
           );
 
-          if (msg.updatedAt > lastPulledDate) {
-            // Get last message of the room
-            const createdAt = msg.createdAt.getTime();
-            if (msg.type !== MessageType.sharedKey) {
-              if (!lastMessageId || !lastChangeAt || createdAt > lastChangeAt) {
-                lastMessageId = msg.id;
-                lastChangeAt = createdAt;
-              }
-
-              // Get last message the user read
-              const seenAt = msg.readReceipts.find((e) => e.user.id === userId)?.seenAt?.getTime() ?? 0;
-              if (!lastReadAt || seenAt > lastReadAt) {
-                lastReadAt = seenAt;
-              }
+          // Get last message of the room
+          const createdAt = msg.createdAt.getTime();
+          if (msg.type !== MessageType.sharedKey) {
+            if (!lastMessageId || !lastChangeAt || createdAt > lastChangeAt) {
+              lastMessageId = msg.id;
+              lastChangeAt = createdAt;
             }
 
+            // Get last message the user read
+            const seenAt = msg.readReceipts.find((e) => e.user.id === userId)?.seenAt?.getTime() ?? 0;
+            if (!lastReadAt || seenAt > lastReadAt) {
+              lastReadAt = seenAt;
+            }
+          }
+
+          if (msg.updatedAt > lastPulledDate) {
             messages.push({
               id: msg.id,
               cipher: msg.cipher,
@@ -196,7 +199,7 @@ export class SyncResolver {
 
         const { id, name, pictureUri } = room;
 
-        if (room.updatedAt > lastPulledDate || lastMessageId) {
+        if (room.updatedAt > lastPulledDate || messages.some((e) => e.roomId === room.id)) {
           // Get rooms
           rooms.push({
             id,

@@ -72,8 +72,7 @@ export class UserResolver {
     }
 
     if (!(await user.matchPassword(password))) {
-      // Does not disclose the existence of the email
-      throw new ApolloError('User not found', 'NOT_FOUND');
+      throw new ApolloError('User not found', 'UNAUTHORIZED');
     }
 
     // Update the last acccess datetime
