@@ -5,6 +5,7 @@ import { FindConditions, LessThan } from 'typeorm';
 import Message, { MessageType } from '!/entities/Message';
 import Room from '!/entities/Room';
 import User from '!/entities/User';
+import notEmpty from '!/helpers/not-empty';
 import { CreateMessageInput, GetMessagesArgs, GetMessagesResponse } from '!/inputs/message';
 import { ShouldSyncPayload } from '!/inputs/sync';
 import { sendMessage } from '!/services/android';
@@ -30,6 +31,12 @@ export class MessageResolver {
 
     const userFound = await User.findOne(userId);
 
+    // Check if user belongs to the room
+    if (!userFound) {
+      log('User not found (%s)', userId);
+      throw new ApolloError('User not found', 'NOT_FOUND');
+    }
+
     // Get room by id
     const roomFound = await Room.findOne({
       where: { id: roomId, isDeleted: false },
@@ -43,7 +50,7 @@ export class MessageResolver {
     }
 
     // Room name or the user that is sending the message
-    const title = roomFound.name || userFound?.name;
+    const title = roomFound.name || userFound.name;
 
     const messageCreated = await Message.create({
       id: messageId ?? undefined,
@@ -53,7 +60,7 @@ export class MessageResolver {
       room: roomFound,
       sentAt: new Date(),
     }).save();
-    log('Created message from user %s on room %s', userFound?.id, roomId);
+    log('Created message from user %s on room %s', userFound.id, roomId);
 
     // Get device token of members, excluding the sender
     const tokens = roomFound.members
@@ -68,32 +75,30 @@ export class MessageResolver {
           return null;
         });
       })
-      .reduce((prev, curr) => (curr || []).concat(...(prev || [])), []);
+      .reduce((prev, curr) => (curr || []).concat(...(prev || [])), [])
+      .filter(notEmpty);
 
     // Send notification
     if (!tokens?.length) {
-      log('Sending notifications skipped, empty tokens');
+      log('Sending notification skipped, no token');
     } else {
-      log('Sending notifications for %s members', tokens.length);
-      sendMessage(
-        {
-          collapseKey: roomId,
-          notification: {
-            title: title || 'Chatty',
-            body: cipher,
-            icon: 'ic_launcher',
-          },
-          data: {
-            roomId,
-          },
+      log('Sending notification for %s members', tokens.length);
+      const message = {
+        collapseKey: roomId,
+        data: {
+          title,
+          roomId,
+          messageId: messageCreated.id,
+          messageCipher: messageCreated.cipher,
+          messageType: messageCreated.type,
+          messageSentAt: String(messageCreated.sentAt.getTime()),
         },
-        tokens as string[],
-        (err) => {
-          if (err) {
-            log('Sending notifications error', JSON.stringify(err, null, 2));
-          }
-        },
-      );
+      };
+      sendMessage(message, tokens, (err) => {
+        if (err) {
+          log('Sending notification error', JSON.stringify(err, null, 2));
+        }
+      });
     }
 
     // Send room so other users can sync
