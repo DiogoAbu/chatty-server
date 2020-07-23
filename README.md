@@ -22,7 +22,6 @@
       App
     </a>
   </h3>
-  <img src="https://github.com/DiogoAbu/chatty-server/workflows/Test%20and%20release/badge.svg?branch=master" />
 </div>
 
 <div align="center">
@@ -62,17 +61,17 @@ To start developing, follow these steps:
 Kindly open an issue [here](https://github.com/DiogoAbu/chatty-server/issues/new/choose) name it and label it accordingly.
 
 ### Releases
-We use Github Actions to test the app. Deploys happen automatically with Heroku.
+We use Github Actions to test and release the app. Deploys happen automatically with Heroku.
 
 When a push happens on `master`, `beta`, or `maintenance branchs` it will trigger some [workflow](https://github.com/DiogoAbu/chatty-server/blob/master/.github/workflows)
 
-**Android workflow:**
+**Release workflow:**
 - Set up the environment (node).
 - Run tests.
 - Analize commits to define next version.
 - Update version on package.json.
 - Commit the changes.
-- Create a release with release notes.
+- Create a tagged release with release notes.
 - Heroku will automatically deploy.
 
 **Associate tag with commit**
