@@ -5,10 +5,8 @@ import { FindConditions, LessThan } from 'typeorm';
 import Message, { MessageType } from '!/entities/Message';
 import Room from '!/entities/Room';
 import User from '!/entities/User';
-import notEmpty from '!/helpers/not-empty';
 import { CreateMessageInput, GetMessagesArgs, GetMessagesResponse } from '!/inputs/message';
 import { ShouldSyncPayload } from '!/inputs/sync';
-import { sendMessage } from '!/services/android';
 import debug from '!/services/debug';
 import { CustomContext } from '!/types';
 
@@ -49,9 +47,6 @@ export class MessageResolver {
       throw new ApolloError('Room not found', 'NOT_FOUND');
     }
 
-    // Room name or the user that is sending the message
-    const title = roomFound.name || userFound.name;
-
     const messageCreated = await Message.create({
       id: messageId ?? undefined,
       cipher,
@@ -61,45 +56,6 @@ export class MessageResolver {
       sentAt: new Date(),
     }).save();
     log('Created message from user %s on room %s', userFound.id, roomId);
-
-    // Get device token of members, excluding the sender
-    const tokens = roomFound.members
-      .map((user) => {
-        return user.devices.map((device) => {
-          if (user.id === userId) {
-            return null;
-          }
-          if (device.platform === 'android') {
-            return device.token;
-          }
-          return null;
-        });
-      })
-      .reduce((prev, curr) => (curr || []).concat(...(prev || [])), [])
-      .filter(notEmpty);
-
-    // Send notification
-    if (!tokens?.length) {
-      log('Sending notification skipped, no token');
-    } else {
-      log('Sending notification for %s members', tokens.length);
-      const message = {
-        collapseKey: roomId,
-        data: {
-          title,
-          roomId,
-          messageId: messageCreated.id,
-          messageCipher: messageCreated.cipher,
-          messageType: messageCreated.type,
-          messageSentAt: String(messageCreated.sentAt.getTime()),
-        },
-      };
-      sendMessage(message, tokens, (err) => {
-        if (err) {
-          log('Sending notification error', JSON.stringify(err, null, 2));
-        }
-      });
-    }
 
     // Send room so other users can sync
     await publish({ rooms: [roomFound], publisherId: userId });

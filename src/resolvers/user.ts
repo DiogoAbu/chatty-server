@@ -2,7 +2,6 @@ import { ApolloError } from 'apollo-server';
 import { Arg, Args, Authorized, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql';
 
 import User from '!/entities/User';
-import randomInteger from '!/helpers/random-integer';
 import {
   ChangePasswordInput,
   CreateAccountInput,
@@ -15,7 +14,9 @@ import { toToken } from '!/services/authentication';
 import { ac } from '!/services/authorization';
 import debug from '!/services/debug';
 import mailer from '!/services/mailer';
+import { sendPush } from '!/services/push-notifications';
 import { CustomContext } from '!/types';
+import randomInteger from '!/utils/random-integer';
 
 const log = debug.extend('user');
 const DAYS = parseInt(process.env.PASSWORD_CHANGE_EXPIRE_DAYS!, 10) || 1;
@@ -29,11 +30,27 @@ export class UserResolver {
     const userId = ctx.userId!;
 
     const user = await User.findOne(userId, {
-      relations: ['devices', 'followers', 'messages', 'messages.readReceipts'],
+      relations: [
+        'devices',
+        'followers',
+        'rooms',
+        'rooms.messages',
+        'rooms.messages.sender',
+        'rooms.members',
+        'rooms.members.devices',
+      ],
     });
 
+    if (!user) {
+      throw new ApolloError('User not found', 'NOT_FOUND');
+    }
+
+    const room = user.rooms[1];
+    const title = room.name || room.members.find((e) => e.id !== userId)!.name;
+    sendPush(userId, title, room.messages.find((e) => e.sender.id === userId)!, room);
+
     // Filter attributes it's not allowed to see
-    const filtered = ctx.permissions[0].filter(user) as User;
+    const filtered: User = ctx.permissions[0].filter(user);
     return filtered;
   }
 

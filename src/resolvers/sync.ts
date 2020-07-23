@@ -15,8 +15,8 @@ import {
 import Message, { MessageType } from '!/entities/Message';
 import ReadReceipt from '!/entities/ReadReceipt';
 import Room from '!/entities/Room';
+import RoomPreferences from '!/entities/RoomPreferences';
 import User from '!/entities/User';
-import getChanges from '!/helpers/get-changes';
 import {
   PullChangesArgs,
   PullChangesResult,
@@ -27,7 +27,9 @@ import {
   ShouldSyncPayload,
 } from '!/inputs/sync';
 import debug from '!/services/debug';
+import { sendPush } from '!/services/push-notifications';
 import { CustomContext } from '!/types';
+import getChanges from '!/utils/get-changes';
 
 import { SHOULD_SYNC } from './subs-types';
 
@@ -83,6 +85,8 @@ export class SyncResolver {
     // Get changes for signed user
     const user = await User.createQueryBuilder('user')
       .leftJoinAndSelect('user.rooms', 'room')
+      .leftJoinAndSelect('user.roomPreferences', 'roomPreferences')
+      .leftJoinAndSelect('roomPreferences.room', 'roomPreferencesRoom')
       .leftJoinAndSelect('room.members', 'member')
       .leftJoinAndSelect('room.messages', 'message')
       .leftJoinAndSelect('message.sender', 'messageSender')
@@ -199,12 +203,26 @@ export class SyncResolver {
 
         const { id, name, pictureUri } = room;
 
+        let isMuted = false;
+        let shouldStillNotify = false;
+        let mutedUntil;
+
+        const pref = user?.roomPreferences.find((e) => e.room.id === room.id);
+        if (pref) {
+          isMuted = pref.isMuted;
+          shouldStillNotify = pref.shouldStillNotify;
+          mutedUntil = pref.mutedUntil?.getTime();
+        }
+
         if (room.updatedAt > lastPulledDate || messages.some((e) => e.roomId === room.id)) {
           // Get rooms
           rooms.push({
             id,
             name,
             pictureUri,
+            isMuted,
+            shouldStillNotify,
+            mutedUntil,
             lastReadAt,
             lastChangeAt,
             lastMessageId,
@@ -241,8 +259,20 @@ export class SyncResolver {
 
     const roomsToPublish = new Map<string, Room>();
 
+    const messagesToNotify = new Map<
+      string,
+      {
+        title: string;
+        message: Message;
+        roomWithMembersAndDevices: Room;
+      }
+    >();
+
     log('Receiving changes for %s (%s)', lastPulledDate, lastPulledAt);
 
+    ///////////
+    // Users //
+    ///////////
     if (changes.users) {
       const { created = [], updated = [] } = changes.users;
 
@@ -261,6 +291,9 @@ export class SyncResolver {
       }
     }
 
+    ///////////
+    // Rooms //
+    ///////////
     if (changes.rooms) {
       const { created = [], updated = [], deleted = [] } = changes.rooms;
       const asyncFuncs: Promise<any>[] = [];
@@ -272,24 +305,39 @@ export class SyncResolver {
 
       if (user) {
         asyncFuncs.push(
-          ...[...created, ...updated].map(async ({ id, name, pictureUri }) => {
-            if (
-              !isMemberOfRoom(user.rooms, id!, userId) &&
-              !isMemberOfNewRoom(changes.roomMembers, id!, userId)
-            ) {
-              return null;
-            }
+          ...[...created, ...updated].map(
+            async ({ id, name, pictureUri, isMuted, shouldStillNotify, mutedUntil }) => {
+              if (
+                !isMemberOfRoom(user.rooms, id!, userId) &&
+                !isMemberOfNewRoom(changes.roomMembers, id!, userId)
+              ) {
+                return null;
+              }
 
-            const room = await Room.create({
-              id,
-              name,
-              pictureUri,
-            }).save();
+              const room = await Room.create({
+                id,
+                name,
+                pictureUri,
+              }).save();
 
-            roomsToPublish.set(room.id, room);
+              const prefFound = await RoomPreferences.findOne({
+                where: { user: { id: userId }, room: { id: room.id } },
+              });
 
-            return room;
-          }),
+              await RoomPreferences.create({
+                id: prefFound?.id,
+                isMuted,
+                shouldStillNotify,
+                mutedUntil: mutedUntil ? new Date(mutedUntil) : null,
+                user: { id: userId },
+                room,
+              }).save();
+
+              roomsToPublish.set(room.id, room);
+
+              return room;
+            },
+          ),
         );
 
         asyncFuncs.push(
@@ -314,6 +362,9 @@ export class SyncResolver {
       );
     }
 
+    //////////////////
+    // Room Members //
+    //////////////////
     if (changes.roomMembers) {
       const { created = [], updated = [], deleted = [] } = changes.roomMembers;
 
@@ -390,6 +441,9 @@ export class SyncResolver {
       }
     }
 
+    //////////////
+    // Messages //
+    //////////////
     if (changes.messages) {
       const { created = [], updated = [], deleted = [] } = changes.messages;
       const asyncFuncs: Promise<any>[] = [];
@@ -403,17 +457,17 @@ export class SyncResolver {
               return null;
             }
 
-            const userFound = await User.findOne({
+            const sender = await User.findOne({
               where: { id: userId, isDeleted: false },
             });
-            if (!userFound) {
+            if (!sender) {
               return null;
             }
 
             // Get room by id
             const roomFound = await Room.findOne({
               where: { id: roomId, isDeleted: false },
-              relations: ['members'],
+              relations: ['members', 'members.devices'],
             });
             if (!roomFound) {
               return null;
@@ -421,8 +475,8 @@ export class SyncResolver {
 
             // Check if user belongs to the room
             if (
-              !roomFound.members.some((e) => e.id === userFound.id) &&
-              !isMemberOfNewRoom(changes.roomMembers, roomFound.id, userFound.id)
+              !roomFound.members.some((e) => e.id === sender.id) &&
+              !isMemberOfNewRoom(changes.roomMembers, roomFound.id, sender.id)
             ) {
               log('Failed to add message, not a room member');
               return null;
@@ -432,7 +486,7 @@ export class SyncResolver {
               id: id ?? undefined,
               cipher,
               type: type ?? MessageType.default,
-              sender: userFound,
+              sender,
               room: roomFound,
               sentAt: sentAt ? new Date(sentAt) : undefined,
               createdAt: createdAt ? new Date(createdAt) : undefined,
@@ -440,6 +494,12 @@ export class SyncResolver {
             }).save();
 
             roomsToPublish.set(roomFound.id, roomFound);
+
+            messagesToNotify.set(message.id, {
+              title: roomFound.name || sender.name,
+              message,
+              roomWithMembersAndDevices: roomFound,
+            });
 
             return message;
           },
@@ -467,6 +527,9 @@ export class SyncResolver {
       );
     }
 
+    ///////////////////
+    // Read Receipts //
+    ///////////////////
     if (changes.readReceipts) {
       const { created = [], updated = [] } = changes.readReceipts;
       const asyncFuncs: Promise<any>[] = [];
@@ -529,6 +592,10 @@ export class SyncResolver {
         ),
       );
     }
+
+    messagesToNotify.forEach(({ title, message, roomWithMembersAndDevices }) => {
+      sendPush(userId, title, message, roomWithMembersAndDevices);
+    });
 
     // Send room so other users can sync
     const rooms = [...roomsToPublish.values()];

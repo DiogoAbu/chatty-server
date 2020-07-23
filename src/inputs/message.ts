@@ -2,7 +2,7 @@ import { IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
 import { ArgsType, Field, ID, InputType, Int, ObjectType } from 'type-graphql';
 
 import Message, { MessageType } from '!/entities/Message';
-import PaginatedResponse from '!/helpers/paginated-response';
+import PaginatedResponse from '!/utils/paginated-response';
 
 @InputType()
 export class CreateMessageInput {

@@ -76,6 +76,15 @@ export class RoomChanges extends DatabaseKeys {
   pictureUri?: string;
 
   @Field()
+  isMuted: boolean;
+
+  @Field()
+  shouldStillNotify: boolean;
+
+  @Field()
+  mutedUntil?: number;
+
+  @Field()
   lastReadAt?: number;
 
   @Field()

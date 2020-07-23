@@ -15,6 +15,7 @@ import Message from '!/entities/Message';
 import User from '!/entities/User';
 
 import ReadReceipt from './ReadReceipt';
+import RoomPreferences from './RoomPreferences';
 
 @ObjectType()
 @Entity('rooms')
@@ -46,6 +47,11 @@ export default class Room extends BaseEntity {
   @Field(() => [ReadReceipt])
   @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.room)
   readReceipts: ReadReceipt[];
+
+  // ONE Room can have MANY Room preferences
+  @Field(() => [RoomPreferences])
+  @OneToMany(() => RoomPreferences, (roomPreferences) => roomPreferences.room)
+  roomPreferences: RoomPreferences[];
 
   @Column({ default: false })
   isDeleted: boolean;

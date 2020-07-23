@@ -149,7 +149,7 @@ type Mutation {
 
   """Remove signed user as follower"""
   stopFollowing(userId: String!): Boolean
-  unregisterDevice(data: RegisterDeviceInput): Boolean
+  unregisterDevices(data: UnregisterDevicesInput): Boolean
 }
 
 type PullChangesResult {
@@ -215,9 +215,9 @@ input ReadReceiptTableChangeSetInput {
 }
 
 input RegisterDeviceInput {
-  name: String
-  platform: DevicePlatform
-  token: String
+  name: String!
+  platform: DevicePlatform!
+  token: String!
 }
 
 type Room {
@@ -229,6 +229,7 @@ type Room {
   name: String
   pictureUri: String
   readReceipts: [ReadReceipt]
+  roomPreferences: [RoomPreferences]
   updatedAt: Timestamp
 }
 
@@ -237,11 +238,14 @@ type RoomChanges {
   _status: String
   createdAt: Float
   id: ID
+  isMuted: Boolean
   lastChangeAt: Float
   lastMessageId: ID
   lastReadAt: Float
+  mutedUntil: Float
   name: String
   pictureUri: String
+  shouldStillNotify: Boolean
 }
 
 input RoomChangesInput {
@@ -249,11 +253,14 @@ input RoomChangesInput {
   _status: String
   createdAt: Float
   id: ID
+  isMuted: Boolean
   lastChangeAt: Float
   lastMessageId: ID
   lastReadAt: Float
+  mutedUntil: Float
   name: String
   pictureUri: String
+  shouldStillNotify: Boolean
 }
 
 type RoomMemberChanges {
@@ -286,6 +293,15 @@ input RoomMemberTableChangeSetInput {
   created: [RoomMemberChangesInput]
   deleted: [ID]
   updated: [RoomMemberChangesInput]
+}
+
+type RoomPreferences {
+  id: ID
+  isMuted: Boolean
+  mutedUntil: Float
+  room: Room
+  shouldStillNotify: Boolean
+  user: User
 }
 
 type RoomTableChangeSet {
@@ -335,6 +351,10 @@ The javascript `Date` as integer. Type represents date and time as number of mil
 """
 scalar Timestamp
 
+input UnregisterDevicesInput {
+  tokens: [String!]!
+}
+
 type User {
   createdAt: Timestamp
   derivedSalt: String
@@ -349,6 +369,7 @@ type User {
   pictureUri: String
   publicKey: String
   role: String
+  roomPreferences: [RoomPreferences]
   rooms: [Room]
   updatedAt: Timestamp
 }

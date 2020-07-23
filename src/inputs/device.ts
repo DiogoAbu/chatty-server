@@ -5,15 +5,22 @@ import { DevicePlatform } from '!/entities/Device';
 
 @InputType()
 export class RegisterDeviceInput {
-  @Field()
+  @Field({ nullable: false })
   @IsNotEmpty()
   name: string;
 
-  @Field()
+  @Field({ nullable: false })
   @IsNotEmpty()
   token: string;
 
-  @Field(() => DevicePlatform)
+  @Field(() => DevicePlatform, { nullable: false })
   @IsNotEmpty()
   platform: DevicePlatform;
+}
+
+@InputType()
+export class UnregisterDevicesInput {
+  @Field(() => [String], { nullable: false })
+  @IsNotEmpty({ each: true })
+  tokens: string[];
 }

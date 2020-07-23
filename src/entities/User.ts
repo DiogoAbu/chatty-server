@@ -20,6 +20,7 @@ import { comparePass, hashPass } from '!/services/encryption';
 import Device from './Device';
 import Message from './Message';
 import Room from './Room';
+import RoomPreferences from './RoomPreferences';
 
 @ObjectType()
 @Entity('users')
@@ -89,6 +90,11 @@ export default class User extends BaseEntity {
   @Field(() => [Device])
   @OneToMany(() => Device, (device) => device.user)
   devices: Device[];
+
+  // ONE User can have MANY Room preferences
+  @Field(() => [RoomPreferences])
+  @OneToMany(() => RoomPreferences, (roomPreferences) => roomPreferences.user)
+  roomPreferences: RoomPreferences[];
 
   @Column({ default: false })
   isDeleted: boolean;

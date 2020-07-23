@@ -1,8 +1,9 @@
+import { ApolloError } from 'apollo-server';
 import { Arg, Authorized, Ctx, Mutation, Resolver } from 'type-graphql';
 
 import Device from '!/entities/Device';
 import User from '!/entities/User';
-import { RegisterDeviceInput } from '!/inputs/device';
+import { RegisterDeviceInput, UnregisterDevicesInput } from '!/inputs/device';
 import debug from '!/services/debug';
 import { CustomContext } from '!/types';
 
@@ -18,54 +19,46 @@ export class DeviceResolver {
 
     const { name, token, platform } = data;
 
-    const user = await User.findOne({
-      where: { id: userId, isDeleted: false },
-      relations: ['devices'],
+    const deviceFound = await Device.findOne({
+      where: { token, user: { id: userId }, isDeleted: false },
     });
 
-    if (!user?.devices?.some((each) => each.token === token)) {
-      log('Device not found, creating %s for %s with token %s', name, platform, token);
+    const deviceCreated = await Device.create({
+      id: deviceFound?.id,
+      name,
+      token,
+      platform,
+      user: { id: userId },
+    }).save();
 
-      await Device.create({
-        name,
-        token,
-        platform,
-        user,
-      }).save();
-
-      return true;
-    }
-
-    log('Device found for %s with token %s', platform, token);
+    log(deviceFound?.id ? 'update' : 'create', deviceCreated);
 
     return true;
   }
 
   @Authorized()
   @Mutation(() => Boolean)
-  async unregisterDevice(
+  async unregisterDevices(
     @Ctx() ctx: CustomContext,
-    @Arg('data') data: RegisterDeviceInput,
+    @Arg('data') data: UnregisterDevicesInput,
   ): Promise<boolean> {
     // Signed in user
     const userId = ctx.userId!;
 
-    const { token, platform } = data;
-
     const user = await User.findOne({
       where: { id: userId, isDeleted: false },
-      relations: ['devices'],
     });
 
-    const deviceFound = user?.devices?.find((each) => each.token === token);
-    if (!deviceFound) {
-      log('Device not found for %s with token %s', platform, token);
-      return true;
+    if (!user) {
+      throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
-    log('Device found, removing for %s with token %s', platform, token);
+    const { tokens } = data;
 
-    await deviceFound.remove();
+    await Device.createQueryBuilder()
+      .delete()
+      .where('token IN (:tokens)', { tokens: tokens.join(', ') })
+      .execute();
 
     return true;
   }
