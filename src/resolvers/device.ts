@@ -19,19 +19,20 @@ export class DeviceResolver {
 
     const { name, token, platform } = data;
 
-    const deviceFound = await Device.findOne({
-      where: { token, user: { id: userId }, isDeleted: false },
+    const deviceFound = await Device.find({
+      where: { token, isDeleted: false },
     });
 
+    await Device.remove(deviceFound);
+
     const deviceCreated = await Device.create({
-      id: deviceFound?.id,
       name,
       token,
       platform,
       user: { id: userId },
     }).save();
 
-    log(deviceFound?.id ? 'update' : 'create', deviceCreated);
+    log('Device added', deviceCreated.name, deviceCreated.platform);
 
     return true;
   }
@@ -54,6 +55,12 @@ export class DeviceResolver {
     }
 
     const { tokens } = data;
+
+    if (!tokens.length) {
+      return true;
+    }
+
+    log('Removing %s tokens from %s', tokens.length, user.name);
 
     await Device.createQueryBuilder()
       .delete()

@@ -14,7 +14,6 @@ import { toToken } from '!/services/authentication';
 import { ac } from '!/services/authorization';
 import debug from '!/services/debug';
 import mailer from '!/services/mailer';
-import { sendPush } from '!/services/push-notifications';
 import { CustomContext } from '!/types';
 import randomInteger from '!/utils/random-integer';
 
@@ -33,11 +32,12 @@ export class UserResolver {
       relations: [
         'devices',
         'followers',
-        'rooms',
-        'rooms.messages',
-        'rooms.messages.sender',
-        'rooms.members',
-        'rooms.members.devices',
+
+        // 'rooms',
+        // 'rooms.messages',
+        // 'rooms.messages.sender',
+        // 'rooms.members',
+        // 'rooms.members.devices',
       ],
     });
 
@@ -45,9 +45,9 @@ export class UserResolver {
       throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
-    const room = user.rooms[1];
-    const title = room.name || room.members.find((e) => e.id !== userId)!.name;
-    sendPush(userId, title, room.messages.find((e) => e.sender.id === userId)!, room);
+    // const room = user.rooms[1];
+    // const title = room.name || room.members.find((e) => e.id !== userId)!.name;
+    // sendPush(userId, title!, room.messages.find((e) => e.sender.id === userId)!, room);
 
     // Filter attributes it's not allowed to see
     const filtered: User = ctx.permissions[0].filter(user);
@@ -84,7 +84,7 @@ export class UserResolver {
       .addSelect('user.password')
       .getOne();
 
-    if (!user || !user.password) {
+    if (!user) {
       throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
@@ -269,6 +269,7 @@ export class UserResolver {
 
     return query
       .andWhere('u.isDeleted = false')
+      .andWhere('u.name IS NOT null')
       .andWhere('u.publicKey IS NOT null')
       .skip(skip)
       .take(take)

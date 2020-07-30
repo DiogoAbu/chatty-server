@@ -9,9 +9,8 @@ import { IsEmailNotUnique } from './validators/is-email-not-unique';
 @InputType()
 export class CreateAccountInput implements Partial<User> {
   @Field()
-  @Length(2, 100, { message: messageLength })
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @Field()
   @IsEmailNotUnique()

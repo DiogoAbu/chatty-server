@@ -13,6 +13,7 @@ import {
 import Room from '!/entities/Room';
 import User from '!/entities/User';
 
+import Attachment from './Attachment';
 import ReadReceipt from './ReadReceipt';
 
 export enum MessageType {
@@ -54,6 +55,10 @@ export default class Message extends BaseEntity {
   @Field(() => [ReadReceipt])
   @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.message)
   readReceipts: ReadReceipt[];
+
+  @Field(() => [Attachment])
+  @OneToMany(() => Attachment, (attachment) => attachment.message)
+  attachments: Attachment[];
 
   @Column({ default: false })
   isDeleted: boolean;

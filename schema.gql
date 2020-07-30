@@ -3,6 +3,62 @@
 # !!!   DO NOT MODIFY THIS FILE BY YOURSELF   !!!
 # -----------------------------------------------
 
+type Attachment {
+  cipherUri: String
+  height: Float
+  id: ID
+  message: Message
+  room: Room
+  type: AttachmentType
+  user: User
+  width: Float
+}
+
+type AttachmentChanges {
+  _changed: String
+  _status: String
+  cipherUri: String
+  height: Float
+  id: ID
+  messageId: ID
+  roomId: ID
+  type: String
+  userId: ID
+  width: Float
+}
+
+input AttachmentChangesInput {
+  _changed: String
+  _status: String
+  cipherUri: String
+  height: Float
+  id: ID
+  messageId: ID
+  roomId: ID
+  type: String
+  userId: ID
+  width: Float
+}
+
+type AttachmentTableChangeSet {
+  created: [AttachmentChanges]
+  deleted: [ID]
+  updated: [AttachmentChanges]
+}
+
+input AttachmentTableChangeSetInput {
+  created: [AttachmentChangesInput]
+  deleted: [ID]
+  updated: [AttachmentChangesInput]
+}
+
+"""The attachment types"""
+enum AttachmentType {
+  document
+  image
+  video
+}
+
 input ChangePasswordInput {
   code: Float
   password: String
@@ -68,6 +124,7 @@ input ListUsersWhere {
 }
 
 type Message {
+  attachments: [Attachment]
   cipher: String
   createdAt: Timestamp
   id: ID
@@ -221,6 +278,7 @@ input RegisterDeviceInput {
 }
 
 type Room {
+  attachments: [Attachment]
   createdAt: Timestamp
   id: ID
   lastMessage: Message
@@ -331,6 +389,7 @@ type Subscription {
 }
 
 type SyncChanges {
+  attachments: AttachmentTableChangeSet
   messages: MessageTableChangeSet
   readReceipts: ReadReceiptTableChangeSet
   roomMembers: RoomMemberTableChangeSet
@@ -339,6 +398,7 @@ type SyncChanges {
 }
 
 input SyncChangesInput {
+  attachments: AttachmentTableChangeSetInput
   messages: MessageTableChangeSetInput
   readReceipts: ReadReceiptTableChangeSetInput
   roomMembers: RoomMemberTableChangeSetInput
@@ -356,6 +416,7 @@ input UnregisterDevicesInput {
 }
 
 type User {
+  attachments: [Attachment]
   createdAt: Timestamp
   derivedSalt: String
   devices: [Device]
@@ -368,6 +429,7 @@ type User {
   name: String
   pictureUri: String
   publicKey: String
+  readReceipts: [ReadReceipt]
   role: String
   roomPreferences: [RoomPreferences]
   rooms: [Room]

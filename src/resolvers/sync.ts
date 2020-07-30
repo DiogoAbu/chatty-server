@@ -12,19 +12,25 @@ import {
   Subscription,
 } from 'type-graphql';
 
+import Attachment from '!/entities/Attachment';
 import Message, { MessageType } from '!/entities/Message';
 import ReadReceipt from '!/entities/ReadReceipt';
 import Room from '!/entities/Room';
 import RoomPreferences from '!/entities/RoomPreferences';
 import User from '!/entities/User';
 import {
+  AttachmentChanges,
+  MessageChanges,
   PullChangesArgs,
   PullChangesResult,
   PushChangesArgs,
+  ReadReceiptChanges,
   RoomChanges,
+  RoomMemberChanges,
   RoomMemberTableChangeSet,
   ShouldSyncArgs,
   ShouldSyncPayload,
+  UserChanges,
 } from '!/inputs/sync';
 import debug from '!/services/debug';
 import { sendPush } from '!/services/push-notifications';
@@ -73,6 +79,11 @@ export class SyncResolver {
           updated: [],
           deleted: [],
         },
+        attachments: {
+          created: [],
+          updated: [],
+          deleted: [],
+        },
         roomMembers: {
           created: [],
           updated: [],
@@ -90,6 +101,8 @@ export class SyncResolver {
       .leftJoinAndSelect('room.members', 'member')
       .leftJoinAndSelect('room.messages', 'message')
       .leftJoinAndSelect('message.sender', 'messageSender')
+      .leftJoinAndSelect('message.attachments', 'messageAttachment')
+      .leftJoinAndSelect('messageAttachment.user', 'messageAttachmentUser')
       .leftJoinAndSelect('message.readReceipts', 'readReceipt', 'readReceipt.updatedAt > :lastPulledDate', {
         lastPulledDate,
       })
@@ -104,12 +117,13 @@ export class SyncResolver {
 
     // Check for rooms
     if (user?.rooms.length) {
-      const messages: any[] = [];
-      const readReceipts: any[] = [];
+      const messages: MessageChanges[] = [];
+      const attachments: AttachmentChanges[] = [];
+      const readReceipts: ReadReceiptChanges[] = [];
       const rooms: RoomChanges[] = [];
 
-      const users = new Map<string, any>();
-      const roomMembers = new Map<string, any>();
+      const users = new Map<string, UserChanges>();
+      const roomMembers = new Map<string, RoomMemberChanges>();
 
       user.rooms.map((room) => {
         // Get users and room members
@@ -152,7 +166,7 @@ export class SyncResolver {
         // Get messages
         room.messages.map((msg) => {
           readReceipts.push(
-            ...msg.readReceipts.map((receipt) => {
+            ...msg.readReceipts.map<ReadReceiptChanges>((receipt) => {
               return {
                 id: receipt.id,
                 userId: receipt.user.id,
@@ -189,6 +203,21 @@ export class SyncResolver {
               sentAt: msg.sentAt.getTime(),
               createdAt,
             });
+
+            attachments.push(
+              ...msg.attachments.map<AttachmentChanges>((attachment) => {
+                return {
+                  id: attachment.id,
+                  cipherUri: attachment.cipherUri,
+                  type: attachment.type,
+                  width: attachment.width,
+                  height: attachment.height,
+                  userId: attachment.user.id,
+                  messageId: msg.id,
+                  roomId: room.id,
+                };
+              }),
+            );
 
             users.set(msg.sender.id, {
               id: msg.sender.id,
@@ -235,6 +264,7 @@ export class SyncResolver {
       result.changes.rooms = getChanges(rooms);
       result.changes.messages = getChanges(messages);
       result.changes.readReceipts = getChanges(readReceipts);
+      result.changes.attachments = getChanges(attachments);
       result.changes.roomMembers = getChanges([...roomMembers.values()]);
     }
 
@@ -496,7 +526,7 @@ export class SyncResolver {
             roomsToPublish.set(roomFound.id, roomFound);
 
             messagesToNotify.set(message.id, {
-              title: roomFound.name || sender.name,
+              title: (roomFound.name || sender.name)!,
               message,
               roomWithMembersAndDevices: roomFound,
             });
@@ -536,14 +566,14 @@ export class SyncResolver {
 
       const handleReadReceipts = async ({
         id,
-        userId: recipientId,
+        userId: receiptUserId,
         messageId,
         roomId,
         receivedAt,
         seenAt,
       }: any) => {
         // Can only add read receipt for itself
-        if (recipientId !== userId) {
+        if (receiptUserId !== userId) {
           log('Receipt not for signed user');
           return null;
         }
@@ -567,7 +597,7 @@ export class SyncResolver {
 
         const readReceipt = await ReadReceipt.create({
           id,
-          user: { id: recipientId },
+          user: { id: receiptUserId },
           message: { id: messageId },
           room: roomFound,
           receivedAt: receivedAtDate || undefined,
@@ -582,6 +612,69 @@ export class SyncResolver {
       asyncFuncs.push(...created.map(handleReadReceipts));
 
       asyncFuncs.push(...updated.map(handleReadReceipts));
+
+      await Promise.all(
+        asyncFuncs.map(async (p) =>
+          p.catch((err) => {
+            console.log(err);
+            return null;
+          }),
+        ),
+      );
+    }
+
+    /////////////////
+    // Attachments //
+    /////////////////
+    if (changes.attachments) {
+      const { created = [], updated = [] } = changes.attachments;
+      const asyncFuncs: Promise<any>[] = [];
+
+      const handleAttachments = async ({
+        id,
+        cipherUri,
+        type,
+        width,
+        height,
+        userId: attachmentUserId,
+        messageId,
+        roomId,
+      }: any) => {
+        // Can only add attachment for itself
+        if (attachmentUserId !== userId) {
+          log('Attachment not for signed user');
+          return null;
+        }
+        if (!cipherUri) {
+          log('Attachment without cypher uri');
+          return null;
+        }
+
+        // Get room by id
+        const roomFound = await Room.findOne({
+          where: { id: roomId, isDeleted: false },
+        });
+        if (!roomFound) {
+          return null;
+        }
+
+        const attachment = await Attachment.create({
+          id,
+          cipherUri,
+          type,
+          width,
+          height,
+          user: { id: attachmentUserId },
+          message: { id: messageId },
+          room: roomFound,
+        }).save();
+
+        return attachment;
+      };
+
+      asyncFuncs.push(...created.map(handleAttachments));
+
+      asyncFuncs.push(...updated.map(handleAttachments));
 
       await Promise.all(
         asyncFuncs.map(async (p) =>

@@ -56,11 +56,11 @@ export class UserChanges extends DatabaseKeys {
   @Field()
   role?: string;
 
-  @Field()
-  isFollowingMe?: boolean;
+  @Field(() => Boolean)
+  isFollowingMe?: boolean | null;
 
-  @Field()
-  isFollowedByMe?: boolean;
+  @Field(() => Boolean)
+  isFollowedByMe?: boolean | null;
 }
 
 @InputType('RoomChangesInput')
@@ -135,6 +135,37 @@ export class MessageChanges extends DatabaseKeys {
   createdAt?: number;
 }
 
+@InputType('AttachmentChangesInput')
+@ObjectType('AttachmentChanges')
+export class AttachmentChanges extends DatabaseKeys {
+  @Field(() => ID)
+  id?: string;
+
+  @Field()
+  cipherUri?: string;
+
+  @Field()
+  type?: string;
+
+  @Field()
+  width?: number;
+
+  @Field()
+  height?: number;
+
+  @Field(() => ID)
+  userId?: string;
+
+  @Field(() => ID)
+  roomId?: string;
+
+  @Field(() => ID)
+  messageId?: string;
+
+  // @Field(() => ID)
+  // postId?: string;
+}
+
 @InputType('ReadReceiptChangesInput')
 @ObjectType('ReadReceiptChanges')
 export class ReadReceiptChanges extends DatabaseKeys {
@@ -173,6 +204,10 @@ export class RoomMemberTableChangeSet extends SyncTableChangeSet(RoomMemberChang
 @ObjectType('MessageTableChangeSet')
 export class MessageTableChangeSet extends SyncTableChangeSet(MessageChanges) {}
 
+@InputType('AttachmentTableChangeSetInput')
+@ObjectType('AttachmentTableChangeSet')
+export class AttachmentTableChangeSet extends SyncTableChangeSet(AttachmentChanges) {}
+
 @InputType('ReadReceiptTableChangeSetInput')
 @ObjectType('ReadReceiptTableChangeSet')
 export class ReadReceiptTableChangeSet extends SyncTableChangeSet(ReadReceiptChanges) {}
@@ -182,6 +217,9 @@ export class ReadReceiptTableChangeSet extends SyncTableChangeSet(ReadReceiptCha
 export class SyncChanges {
   @Field(() => MessageTableChangeSet)
   messages: MessageTableChangeSet;
+
+  @Field(() => AttachmentTableChangeSet)
+  attachments?: AttachmentTableChangeSet;
 
   @Field(() => ReadReceiptTableChangeSet)
   readReceipts?: ReadReceiptTableChangeSet;

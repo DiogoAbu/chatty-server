@@ -17,8 +17,10 @@ import {
 import { ROLES } from '!/services/authorization';
 import { comparePass, hashPass } from '!/services/encryption';
 
+import Attachment from './Attachment';
 import Device from './Device';
 import Message from './Message';
+import ReadReceipt from './ReadReceipt';
 import Room from './Room';
 import RoomPreferences from './RoomPreferences';
 
@@ -30,8 +32,8 @@ export default class User extends BaseEntity {
   id: string;
 
   @Field()
-  @Column({ type: 'text' })
-  name: string;
+  @Column({ type: 'text', nullable: true })
+  name?: string;
 
   @Field()
   @Column({ type: 'text', nullable: true })
@@ -74,6 +76,14 @@ export default class User extends BaseEntity {
   @Field(() => [Message])
   @OneToMany(() => Message, (message) => message.sender)
   messages: Message[];
+
+  @Field(() => [ReadReceipt])
+  @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.user)
+  readReceipts: ReadReceipt[];
+
+  @Field(() => [Attachment])
+  @OneToMany(() => Attachment, (attachment) => attachment.user)
+  attachments: Attachment[];
 
   @ManyToMany(() => User, (user) => user.followersInverse, {
     cascade: false,

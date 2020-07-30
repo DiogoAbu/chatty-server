@@ -14,6 +14,7 @@ import {
 import Message from '!/entities/Message';
 import User from '!/entities/User';
 
+import Attachment from './Attachment';
 import ReadReceipt from './ReadReceipt';
 import RoomPreferences from './RoomPreferences';
 
@@ -47,6 +48,10 @@ export default class Room extends BaseEntity {
   @Field(() => [ReadReceipt])
   @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.room)
   readReceipts: ReadReceipt[];
+
+  @Field(() => [Attachment])
+  @OneToMany(() => Attachment, (attachment) => attachment.room)
+  attachments: Attachment[];
 
   // ONE Room can have MANY Room preferences
   @Field(() => [RoomPreferences])

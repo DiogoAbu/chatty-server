@@ -36,9 +36,9 @@ export function sendPush(
   const tokens = roomWithMembersAndDevices.members
     .map((user) => {
       return user.devices.map((device) => {
-        // if (user.id === senderId) {
-        //   return null;
-        // }
+        if (user.id === senderId) {
+          return null;
+        }
         if (device.platform === 'android') {
           return device.token;
         }
