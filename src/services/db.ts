@@ -3,9 +3,7 @@ import { Connection, createConnection } from 'typeorm';
 import entities from '!/entities';
 import debug from '!/services/debug';
 
-const { DATABASE_URL, NODE_ENV, TYPEORM_SSL, TYPEORM_RESET } = process.env;
-
-const isDev = NODE_ENV !== 'production';
+const { DATABASE_URL, TYPEORM_SSL, TYPEORM_DROP, TYPEORM_SYNC } = process.env;
 
 const log = debug.extend('db');
 
@@ -17,11 +15,11 @@ export default async (): Promise<Connection> => {
     url: DATABASE_URL,
     ssl: TYPEORM_SSL === 'true',
     cache: true,
-    dropSchema: TYPEORM_RESET === 'true',
+    dropSchema: TYPEORM_DROP === 'true',
     entities,
     logging: 'all',
     logger: 'debug',
-    synchronize: isDev,
+    synchronize: TYPEORM_SYNC === 'true',
     migrations: ['migration/*.js'],
     cli: {
       migrationsDir: 'migration',
