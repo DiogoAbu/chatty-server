@@ -1,18 +1,7 @@
 import { ApolloError } from 'apollo-server';
-import {
-  Arg,
-  Args,
-  Authorized,
-  Ctx,
-  FieldResolver,
-  Mutation,
-  Query,
-  Resolver,
-  Root,
-} from 'type-graphql';
+import { Arg, Args, Authorized, Ctx, FieldResolver, Mutation, Query, Resolver, Root } from 'type-graphql';
 
 import User from '!/entities/User';
-import randomInteger from '!/helpers/random-integer';
 import {
   ChangePasswordInput,
   CreateAccountInput,
@@ -25,7 +14,8 @@ import { toToken } from '!/services/authentication';
 import { ac } from '!/services/authorization';
 import debug from '!/services/debug';
 import mailer from '!/services/mailer';
-import { MyContext } from '!/types';
+import { CustomContext } from '!/types';
+import randomInteger from '!/utils/random-integer';
 
 const log = debug.extend('user');
 const DAYS = parseInt(process.env.PASSWORD_CHANGE_EXPIRE_DAYS!, 10) || 1;
@@ -34,12 +24,33 @@ const DAYS = parseInt(process.env.PASSWORD_CHANGE_EXPIRE_DAYS!, 10) || 1;
 export class UserResolver {
   @Authorized(['read:own:account'])
   @Query(() => User)
-  me(@Ctx() ctx: MyContext): User {
+  async me(@Ctx() ctx: CustomContext): Promise<User> {
     // Signed in user
-    const { user } = ctx;
+    const userId = ctx.userId!;
+
+    const user = await User.findOne(userId, {
+      relations: [
+        'devices',
+        'followers',
+
+        // 'rooms',
+        // 'rooms.messages',
+        // 'rooms.messages.sender',
+        // 'rooms.members',
+        // 'rooms.members.devices',
+      ],
+    });
+
+    if (!user) {
+      throw new ApolloError('User not found', 'NOT_FOUND');
+    }
+
+    // const room = user.rooms[1];
+    // const title = room.name || room.members.find((e) => e.id !== userId)!.name;
+    // sendPush(userId, title!, room.messages.find((e) => e.sender.id === userId)!, room);
 
     // Filter attributes it's not allowed to see
-    const filtered = ctx.permissions[0].filter(user) as User;
+    const filtered: User = ctx.permissions[0].filter(user);
     return filtered;
   }
 
@@ -67,29 +78,18 @@ export class UserResolver {
   @Mutation(() => SignInResponse)
   async signIn(@Arg('data') data: SignInInput): Promise<SignInResponse> {
     const { email, password } = data;
-    const user = await User.findOne(
-      { email },
-      {
-        select: [
-          'id',
-          'name',
-          'email',
-          'password',
-          'pictureUri',
-          'role',
-          'lastAccessAt',
-          'createdAt',
-        ],
-      },
-    );
+
+    const user = await User.createQueryBuilder('user')
+      .where('user.email = :email AND user.isDeleted = false', { email })
+      .addSelect('user.password')
+      .getOne();
 
     if (!user) {
       throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
     if (!(await user.matchPassword(password))) {
-      // Does not disclose the existence of the email
-      throw new ApolloError('User not found', 'NOT_FOUND');
+      throw new ApolloError('User not found', 'UNAUTHORIZED');
     }
 
     // Update the last acccess datetime
@@ -150,24 +150,13 @@ export class UserResolver {
   async changePassword(@Arg('data') data: ChangePasswordInput): Promise<boolean> {
     const { code, password } = data;
 
-    const user = await User.findOne(
-      { passwordChangeCode: code },
-      {
-        select: [
-          'createdAt',
-          'email',
-          'id',
-          'isDeleted',
-          'lastAccessAt',
-          'name',
-          'passwordChangeCode',
-          'passwordChangeExpires',
-          'role',
-          'updatedAt',
-        ],
-      },
-    );
-    if (!user) {
+    const user = await User.createQueryBuilder('user')
+      .where('user.passwordChangeCode = :code AND user.isDeleted = false', { code })
+      .addSelect('user.passwordChangeCode')
+      .addSelect('user.passwordChangeExpires')
+      .getOne();
+
+    if (!user || !user.passwordChangeCode) {
       throw new ApolloError('Code not found', 'NOT_FOUND');
     }
 
@@ -179,7 +168,7 @@ export class UserResolver {
       throw new ApolloError('Code is invalid', 'NOT_ACCEPTABLE');
     }
 
-    // Update user document
+    // Update user document, password will get hashed
     user.password = password;
     user.passwordChangeCode = null;
     user.passwordChangeExpires = null;
@@ -194,31 +183,31 @@ export class UserResolver {
     description: 'Add signed user as follower',
   })
   async startFollowing(
-    @Arg('userId', { nullable: false }) userId: string,
-    @Ctx() ctx: MyContext,
+    @Arg('userId', { nullable: false }) userIdToFollow: string,
+    @Ctx() ctx: CustomContext,
   ): Promise<boolean> {
     // Signed in user
-    const { id: signedId } = ctx.user!;
+    const userId = ctx.userId!;
 
-    if (signedId === userId) {
+    if (userId === userIdToFollow) {
       log('User cannot follow itself');
       return false;
     }
 
-    const signedUser = await User.findOne(signedId);
-    if (!signedUser) {
+    const userFound = await User.findOne(userId);
+    if (!userFound) {
       throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
-    const person = await User.findOne(userId, { relations: ['followers'] });
-    if (!person) {
+    const userToFollow = await User.findOne(userIdToFollow, { relations: ['followers'] });
+    if (!userToFollow) {
       throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
     // Update user document
-    person.followers.push(signedUser);
+    userToFollow.followers.push(userFound);
 
-    await person.save();
+    await userToFollow.save();
 
     return true;
   }
@@ -228,31 +217,31 @@ export class UserResolver {
     description: 'Remove signed user as follower',
   })
   async stopFollowing(
-    @Arg('userId', { nullable: false }) userId: string,
-    @Ctx() ctx: MyContext,
+    @Arg('userId', { nullable: false }) userIdToFollow: string,
+    @Ctx() ctx: CustomContext,
   ): Promise<boolean> {
     // Signed in user
-    const { id: signedId } = ctx.user!;
+    const userId = ctx.userId!;
 
-    if (signedId === userId) {
+    if (userId === userIdToFollow) {
       log('User cannot unfollow itself');
       return false;
     }
 
-    const signedUser = await User.findOne(signedId);
-    if (!signedUser) {
+    const userFound = await User.findOne(userId);
+    if (!userFound) {
       throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
-    const person = await User.findOne(userId, { relations: ['followers'] });
-    if (!person) {
+    const userToFollow = await User.findOne(userIdToFollow, { relations: ['followers'] });
+    if (!userToFollow) {
       throw new ApolloError('User not found', 'NOT_FOUND');
     }
 
     // Update user document
-    person.followers = person.followers.filter((each) => each.id !== signedId);
+    userToFollow.followers = userToFollow.followers.filter((each) => each.id !== userId);
 
-    await person.save();
+    await userToFollow.save();
 
     return true;
   }
@@ -278,25 +267,31 @@ export class UserResolver {
       query = query.addOrderBy('u.email', order.email === 'DESC' ? 'DESC' : 'ASC');
     }
 
-    return query.andWhere('u.isDeleted = false').skip(skip).take(take).getMany();
+    return query
+      .andWhere('u.isDeleted = false')
+      .andWhere('u.name IS NOT null')
+      .andWhere('u.publicKey IS NOT null')
+      .skip(skip)
+      .take(take)
+      .getMany();
   }
 
   @FieldResolver(() => Boolean, {
     nullable: true,
     description: 'If user is following the signed user',
   })
-  async isFollowingMe(@Root() user: User, @Ctx() ctx: MyContext): Promise<boolean | null> {
+  async isFollowingMe(@Root() user: User, @Ctx() ctx: CustomContext): Promise<boolean | null> {
     // Signed in user
-    const { id: signedId } = ctx.user!;
+    const userId = ctx.userId!;
 
-    if (signedId === user.id) {
+    if (userId === user.id) {
       return null;
     }
 
     // Signed user has the specified user as follower
     const userFound = await User.createQueryBuilder('user')
       .leftJoinAndSelect('user.followers', 'follower')
-      .where('user.id = :signedId AND user.isDeleted = false', { signedId })
+      .where('user.id = :userId AND user.isDeleted = false', { userId })
       .andWhere('follower.id = :id', { id: user.id })
       .getOne();
 
@@ -307,11 +302,11 @@ export class UserResolver {
     nullable: true,
     description: 'If signed user is following the user',
   })
-  async isFollowedByMe(@Root() user: User, @Ctx() ctx: MyContext): Promise<boolean | null> {
+  async isFollowedByMe(@Root() user: User, @Ctx() ctx: CustomContext): Promise<boolean | null> {
     // Signed in user
-    const { id: signedId } = ctx.user!;
+    const userId = ctx.userId!;
 
-    if (signedId === user.id) {
+    if (userId === user.id) {
       return null;
     }
 
@@ -319,7 +314,7 @@ export class UserResolver {
     const userFound = await User.createQueryBuilder('user')
       .leftJoinAndSelect('user.followers', 'follower')
       .where('user.id = :id AND user.isDeleted = false', { id: user.id })
-      .andWhere('follower.id = :signedId', { signedId })
+      .andWhere('follower.id = :userId', { userId })
       .getOne();
 
     return !!userFound;

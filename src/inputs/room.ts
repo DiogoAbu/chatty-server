@@ -3,6 +3,10 @@ import { Field, ID, InputType } from 'type-graphql';
 
 @InputType()
 export class CreateRoomInput {
+  @Field(() => ID)
+  @IsOptional()
+  id?: string;
+
   @Field()
   @IsOptional()
   name?: string;

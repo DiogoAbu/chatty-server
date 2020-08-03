@@ -2,7 +2,7 @@ import { SymmetricKey, V2 as Protocol } from 'paseto.js';
 import { v4 as uuid } from 'uuid';
 
 import User from '!/entities/User';
-import { MyRequest, Payload } from '!/types';
+import { AuthenticationPayload } from '!/types';
 
 const SECRET_B64 = process.env.SECRET_B64!;
 
@@ -18,7 +18,7 @@ export async function toToken(user: Partial<User>): Promise<string> {
 
   // Set token`s payload
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const payload: Payload = { __uuid: uuid(), id: user.id! };
+  const payload: AuthenticationPayload = { __uuid: uuid(), id: user.id! };
 
   // Prepare payload
   const message = JSON.stringify(payload, null, 0);
@@ -41,7 +41,7 @@ export async function fromToken(token: string): Promise<string> {
   const message = await key.protocol().decrypt(token, key);
 
   // Get token`s data
-  const payload: Payload = JSON.parse(message);
+  const payload: AuthenticationPayload = JSON.parse(message);
 
   // Return payload
   return payload.id;
@@ -50,14 +50,16 @@ export async function fromToken(token: string): Promise<string> {
 /**
  * Find token from request header Bearer, then return related User.
  */
-export async function getUserFromHeader(req: MyRequest): Promise<User | null> {
+export async function getUserFromHeader(
+  headers: Record<string, string | string[] | undefined>,
+): Promise<string | null> {
   // Check existence of header
-  if (!req.headers?.authorization) {
+  if (!headers?.authorization) {
     return null;
   }
 
   // Check if header is correctly formed
-  const parts = req.headers.authorization.split(' ');
+  const parts = (headers.authorization as string).split(' ');
   if (parts.length !== 2) {
     return null;
   }
@@ -76,27 +78,9 @@ export async function getUserFromHeader(req: MyRequest): Promise<User | null> {
 
   try {
     // Get ID from token
-    const id = await fromToken(token);
+    const userId = await fromToken(token);
 
-    // Get User from ID (is it needed?)
-    const user = await User.findOne({
-      where: { id },
-      select: [
-        'createdAt',
-        'email',
-        'id',
-        'isDeleted',
-        'lastAccessAt',
-        'name',
-        'pictureUri',
-        'passwordChangeCode',
-        'passwordChangeExpires',
-        'role',
-        'updatedAt',
-      ],
-    });
-
-    return user ?? null;
+    return userId;
   } catch {
     return null;
   }

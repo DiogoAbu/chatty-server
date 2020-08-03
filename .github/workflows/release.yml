@@ -1,4 +1,4 @@
-name: Test and release
+name: Generate Release
 
 on:
   push:
@@ -21,18 +21,6 @@ jobs:
         uses: actions/checkout@v2
         with:
           persist-credentials: false
-
-      - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@v1
-        with:
-          git_user_signingkey: true
-          git_commit_gpgsign: true
-          git_tag_gpgsign: true
-          git_committer_name: ${{ secrets.GIT_NAME }}
-          git_committer_email: ${{ secrets.GIT_EMAIL }}
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
       - name: Set up Node
         uses: actions/setup-node@v1
@@ -58,7 +46,19 @@ jobs:
       - name: Start test
         run: yarn test --forceExit --silent --onlyChanged
 
-      - name: Bump version, generate release notes, build, and release
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v1
+        with:
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+          git_tag_gpgsign: true
+          git_committer_name: ${{ secrets.GIT_NAME }}
+          git_committer_email: ${{ secrets.GIT_EMAIL }}
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+      - name: Determine version, generate notes, publish tag and release
         run: npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.PERSONAL_TOKEN }}

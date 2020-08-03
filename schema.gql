@@ -3,6 +3,65 @@
 # !!!   DO NOT MODIFY THIS FILE BY YOURSELF   !!!
 # -----------------------------------------------
 
+type Attachment {
+  cipherUri: String
+  filename: String
+  height: Float
+  id: ID
+  message: Message
+  room: Room
+  type: AttachmentType
+  user: User
+  width: Float
+}
+
+type AttachmentChanges {
+  _changed: String
+  _status: String
+  cipherUri: String
+  filename: String
+  height: Float
+  id: ID
+  messageId: ID
+  roomId: ID
+  type: String
+  userId: ID
+  width: Float
+}
+
+input AttachmentChangesInput {
+  _changed: String
+  _status: String
+  cipherUri: String
+  filename: String
+  height: Float
+  id: ID
+  messageId: ID
+  roomId: ID
+  type: String
+  userId: ID
+  width: Float
+}
+
+type AttachmentTableChangeSet {
+  created: [AttachmentChanges]
+  deleted: [ID]
+  updated: [AttachmentChanges]
+}
+
+input AttachmentTableChangeSetInput {
+  created: [AttachmentChangesInput]
+  deleted: [ID]
+  updated: [AttachmentChangesInput]
+}
+
+"""The attachment types"""
+enum AttachmentType {
+  document
+  image
+  video
+}
+
 input ChangePasswordInput {
   code: Float
   password: String
@@ -16,12 +75,14 @@ input CreateAccountInput {
 }
 
 input CreateMessageInput {
-  content: String
+  cipher: String
   messageId: String
   roomId: ID
+  type: MessageType
 }
 
 input CreateRoomInput {
+  id: ID
   name: String
   pictureUri: String
   recipientsId: [ID]
@@ -30,6 +91,7 @@ input CreateRoomInput {
 type Device {
   createdAt: Timestamp
   id: ID
+  name: String
   platform: DevicePlatform
   token: String
   user: User
@@ -54,11 +116,6 @@ type GetMessagesResponse {
   items: [Message]
 }
 
-"""
-The `JSON` scalar type represents JSON values as specified by [ECMA-404](http://www.ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf).
-"""
-scalar JSON
-
 input ListUsersOrder {
   email: String
   name: String
@@ -70,12 +127,59 @@ input ListUsersWhere {
 }
 
 type Message {
-  content: String
+  attachments: [Attachment]
+  cipher: String
   createdAt: Timestamp
   id: ID
+  readReceipts: [ReadReceipt]
   room: Room
+  sender: User
+  sentAt: Timestamp
+  type: MessageType
   updatedAt: Timestamp
-  user: User
+}
+
+type MessageChanges {
+  _changed: String
+  _status: String
+  cipher: String
+  createdAt: Float
+  id: ID
+  roomId: ID
+  sentAt: Float
+  type: MessageType
+  userId: ID
+}
+
+input MessageChangesInput {
+  _changed: String
+  _status: String
+  cipher: String
+  createdAt: Float
+  id: ID
+  roomId: ID
+  sentAt: Float
+  type: MessageType
+  userId: ID
+}
+
+type MessageTableChangeSet {
+  created: [MessageChanges]
+  deleted: [ID]
+  updated: [MessageChanges]
+}
+
+input MessageTableChangeSetInput {
+  created: [MessageChangesInput]
+  deleted: [ID]
+  updated: [MessageChangesInput]
+}
+
+"""The message types"""
+enum MessageType {
+  announcement
+  default
+  sharedKey
 }
 
 type Mutation {
@@ -92,9 +196,9 @@ type Mutation {
   """
   forgotPassword(data: ForgotPasswordInput): Boolean
   pushChanges(
-    changes: JSON
+    changes: SyncChangesInput
 
-    """Milliseconds since UNIX epoch"""
+    """Last time client pulled changes in milliseconds since UNIX epoch"""
     lastPulledAt: Float
   ): Boolean
   registerDevice(data: RegisterDeviceInput): Boolean
@@ -105,6 +209,14 @@ type Mutation {
 
   """Remove signed user as follower"""
   stopFollowing(userId: String!): Boolean
+  unregisterDevices(data: UnregisterDevicesInput): Boolean
+}
+
+type PullChangesResult {
+  changes: SyncChanges
+
+  """Last successful pull in milliseconds since UNIX epoch"""
+  timestamp: Float!
 }
 
 type Query {
@@ -113,17 +225,63 @@ type Query {
   listUsers(order: ListUsersOrder, skip: Int = 0, take: Int = 10, where: ListUsersWhere): [User]
   me: User
   pullChanges(
-    """Milliseconds since UNIX epoch"""
+    """Last time client pulled changes in milliseconds since UNIX epoch"""
     lastPulledAt: Float
-  ): JSON
+  ): PullChangesResult
+}
+
+type ReadReceipt {
+  id: ID
+  message: Message
+  receivedAt: Float
+  room: Room
+  seenAt: Float
+  updatedAt: Timestamp
+  user: User
+}
+
+type ReadReceiptChanges {
+  _changed: String
+  _status: String
+  id: ID
+  messageId: ID
+  receivedAt: Float
+  roomId: ID
+  seenAt: Float
+  userId: ID
+}
+
+input ReadReceiptChangesInput {
+  _changed: String
+  _status: String
+  id: ID
+  messageId: ID
+  receivedAt: Float
+  roomId: ID
+  seenAt: Float
+  userId: ID
+}
+
+type ReadReceiptTableChangeSet {
+  created: [ReadReceiptChanges]
+  deleted: [ID]
+  updated: [ReadReceiptChanges]
+}
+
+input ReadReceiptTableChangeSetInput {
+  created: [ReadReceiptChangesInput]
+  deleted: [ID]
+  updated: [ReadReceiptChangesInput]
 }
 
 input RegisterDeviceInput {
-  platform: DevicePlatform
-  token: String
+  name: String!
+  platform: DevicePlatform!
+  token: String!
 }
 
 type Room {
+  attachments: [Attachment]
   createdAt: Timestamp
   id: ID
   lastMessage: Message
@@ -131,7 +289,92 @@ type Room {
   messages: [Message]
   name: String
   pictureUri: String
+  readReceipts: [ReadReceipt]
+  roomPreferences: [RoomPreferences]
   updatedAt: Timestamp
+}
+
+type RoomChanges {
+  _changed: String
+  _status: String
+  createdAt: Float
+  id: ID
+  isMuted: Boolean
+  lastChangeAt: Float
+  lastMessageId: ID
+  lastReadAt: Float
+  mutedUntil: Float
+  name: String
+  pictureUri: String
+  shouldStillNotify: Boolean
+}
+
+input RoomChangesInput {
+  _changed: String
+  _status: String
+  createdAt: Float
+  id: ID
+  isMuted: Boolean
+  lastChangeAt: Float
+  lastMessageId: ID
+  lastReadAt: Float
+  mutedUntil: Float
+  name: String
+  pictureUri: String
+  shouldStillNotify: Boolean
+}
+
+type RoomMemberChanges {
+  _changed: String
+  _status: String
+
+  """Not a normal uuid"""
+  id: String
+  roomId: ID
+  userId: ID
+}
+
+input RoomMemberChangesInput {
+  _changed: String
+  _status: String
+
+  """Not a normal uuid"""
+  id: String
+  roomId: ID
+  userId: ID
+}
+
+type RoomMemberTableChangeSet {
+  created: [RoomMemberChanges]
+  deleted: [ID]
+  updated: [RoomMemberChanges]
+}
+
+input RoomMemberTableChangeSetInput {
+  created: [RoomMemberChangesInput]
+  deleted: [ID]
+  updated: [RoomMemberChangesInput]
+}
+
+type RoomPreferences {
+  id: ID
+  isMuted: Boolean
+  mutedUntil: Float
+  room: Room
+  shouldStillNotify: Boolean
+  user: User
+}
+
+type RoomTableChangeSet {
+  created: [RoomChanges]
+  deleted: [ID]
+  updated: [RoomChanges]
+}
+
+input RoomTableChangeSetInput {
+  created: [RoomChangesInput]
+  deleted: [ID]
+  updated: [RoomChangesInput]
 }
 
 input SignInInput {
@@ -145,8 +388,25 @@ type SignInResponse {
 }
 
 type Subscription {
-  messageCreated(roomIds: [ID]): Message
-  roomCreated: Room
+  shouldSync(roomIds: [ID]): Boolean
+}
+
+type SyncChanges {
+  attachments: AttachmentTableChangeSet
+  messages: MessageTableChangeSet
+  readReceipts: ReadReceiptTableChangeSet
+  roomMembers: RoomMemberTableChangeSet
+  rooms: RoomTableChangeSet
+  users: UserTableChangeSet
+}
+
+input SyncChangesInput {
+  attachments: AttachmentTableChangeSetInput
+  messages: MessageTableChangeSetInput
+  readReceipts: ReadReceiptTableChangeSetInput
+  roomMembers: RoomMemberTableChangeSetInput
+  rooms: RoomTableChangeSetInput
+  users: UserTableChangeSetInput
 }
 
 """
@@ -154,18 +414,67 @@ The javascript `Date` as integer. Type represents date and time as number of mil
 """
 scalar Timestamp
 
+input UnregisterDevicesInput {
+  tokens: [String!]!
+}
+
 type User {
+  attachments: [Attachment]
   createdAt: Timestamp
+  derivedSalt: String
   devices: [Device]
   email: String
   id: ID
   isFollowedByMe: Boolean
   isFollowingMe: Boolean
   lastAccessAt: Timestamp
+  messages: [Message]
+  name: String
+  pictureUri: String
+  publicKey: String
+  readReceipts: [ReadReceipt]
+  role: String
+  roomPreferences: [RoomPreferences]
+  rooms: [Room]
+  updatedAt: Timestamp
+}
+
+type UserChanges {
+  _changed: String
+  _status: String
+  derivedSalt: String
+  email: String
+  id: ID
+  isFollowedByMe: Boolean
+  isFollowingMe: Boolean
   name: String
   pictureUri: String
   publicKey: String
   role: String
-  rooms: [Room]
-  updatedAt: Timestamp
+}
+
+input UserChangesInput {
+  _changed: String
+  _status: String
+  derivedSalt: String
+  email: String
+  id: ID
+  isFollowedByMe: Boolean
+  isFollowingMe: Boolean
+  name: String
+  pictureUri: String
+  publicKey: String
+  role: String
+}
+
+type UserTableChangeSet {
+  created: [UserChanges]
+  deleted: [ID]
+  updated: [UserChanges]
+}
+
+input UserTableChangeSetInput {
+  created: [UserChangesInput]
+  deleted: [ID]
+  updated: [UserChangesInput]
 }

@@ -4,4 +4,4 @@ import { RoomResolver } from './room';
 import { SyncResolver } from './sync';
 import { UserResolver } from './user';
 
-export default [UserResolver, RoomResolver, MessageResolver, SyncResolver, DeviceResolver];
+export default [DeviceResolver, MessageResolver, RoomResolver, SyncResolver, UserResolver];

@@ -2,16 +2,15 @@ import { IsEmail, IsNotEmpty, IsOptional, Length, Max, Min } from 'class-validat
 import { ArgsType, Field, InputType, Int, ObjectType } from 'type-graphql';
 
 import User from '!/entities/User';
-import { messageLength } from '!/helpers/validation';
+import { messageLength } from '!/utils/validation';
 
 import { IsEmailNotUnique } from './validators/is-email-not-unique';
 
 @InputType()
 export class CreateAccountInput implements Partial<User> {
   @Field()
-  @Length(2, 100, { message: messageLength })
-  @IsNotEmpty()
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @Field()
   @IsEmailNotUnique()

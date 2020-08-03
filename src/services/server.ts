@@ -1,13 +1,12 @@
 import { ApolloServer } from 'apollo-server';
 import { buildSchema, UnauthorizedError } from 'type-graphql';
 
-import User from '!/entities/User';
 import resolvers from '!/resolvers';
-import { fromToken, getUserFromHeader } from '!/services/authentication';
+import { getUserFromHeader } from '!/services/authentication';
 import { authChecker } from '!/services/authorization';
 import debug from '!/services/debug';
 import sigkill from '!/services/sigkill';
-import { MyContext } from '!/types';
+import { CustomContext } from '!/types';
 
 const log = debug.extend('server');
 
@@ -24,24 +23,24 @@ export default async (): Promise<{ server: ApolloServer; url: string }> => {
   // Create GraphQL server
   const server = new ApolloServer({
     schema,
-    context: async ({ req, connection }): Promise<MyContext> => {
+    cors: true,
+    context: async ({ req, connection }): Promise<CustomContext> => {
       // If using web socket
       if (connection) {
         return connection.context;
       }
       return {
-        user: await getUserFromHeader(req),
+        userId: await getUserFromHeader(req.headers),
         permissions: [],
       };
     },
     subscriptions: {
       onConnect: async (connectionParams: any) => {
         try {
-          if (connectionParams.token) {
-            // Get ID from token and User from ID
-            const id = await fromToken(connectionParams.token);
+          if (connectionParams) {
+            const userId = await getUserFromHeader(connectionParams);
             return {
-              user: await User.findOne(id),
+              userId,
               permissions: [],
             };
           }
@@ -49,7 +48,7 @@ export default async (): Promise<{ server: ApolloServer; url: string }> => {
           //
         }
 
-        // Nothing return, throw authentication error
+        // Nothing returned, throw authentication error
         throw new UnauthorizedError();
       },
     },

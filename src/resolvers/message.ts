@@ -1,33 +1,16 @@
 import { ApolloError } from 'apollo-server';
-import {
-  Arg,
-  Args,
-  Authorized,
-  Ctx,
-  Mutation,
-  Publisher,
-  PubSub,
-  Query,
-  Resolver,
-  Root,
-  Subscription,
-} from 'type-graphql';
+import { Arg, Args, Authorized, Ctx, Mutation, Publisher, PubSub, Query, Resolver } from 'type-graphql';
 import { FindConditions, LessThan } from 'typeorm';
 
-import Message from '!/entities/Message';
+import Message, { MessageType } from '!/entities/Message';
 import Room from '!/entities/Room';
 import User from '!/entities/User';
-import {
-  CreateMessageInput,
-  GetMessagesArgs,
-  GetMessagesResponse,
-  MessageCreatedArgs,
-} from '!/inputs/message';
-import { sendMessage } from '!/services/android';
+import { CreateMessageInput, GetMessagesArgs, GetMessagesResponse } from '!/inputs/message';
+import { ShouldSyncPayload } from '!/inputs/sync';
 import debug from '!/services/debug';
-import { MyContext } from '!/types';
+import { CustomContext } from '!/types';
 
-import { MESSAGE_CREATED } from './subs-types';
+import { SHOULD_SYNC } from './subs-types';
 
 const log = debug.extend('message');
 
@@ -36,13 +19,21 @@ export class MessageResolver {
   @Authorized(['create:own:message'])
   @Mutation(() => Message)
   async createMessage(
-    @Ctx() ctx: MyContext,
+    @Ctx() ctx: CustomContext,
     @Arg('data') data: CreateMessageInput,
-    @PubSub(MESSAGE_CREATED) publish: Publisher<Message>,
+    @PubSub(SHOULD_SYNC) publish: Publisher<ShouldSyncPayload>,
   ): Promise<Message> {
     // Signed in user
-    const { id: userId, name } = ctx.user!;
-    const { roomId, messageId, content } = data;
+    const userId = ctx.userId!;
+    const { roomId, messageId, cipher, type } = data;
+
+    const userFound = await User.findOne(userId);
+
+    // Check if user belongs to the room
+    if (!userFound) {
+      log('User not found (%s)', userId);
+      throw new ApolloError('User not found', 'NOT_FOUND');
+    }
 
     // Get room by id
     const roomFound = await Room.findOne({
@@ -56,67 +47,25 @@ export class MessageResolver {
       throw new ApolloError('Room not found', 'NOT_FOUND');
     }
 
-    // Room name or the user that is sending the message
-    const title = roomFound.name || name;
-
     const messageCreated = await Message.create({
       id: messageId ?? undefined,
-      content,
-      user: ctx.user!,
+      cipher,
+      type: type ?? MessageType.default,
+      sender: userFound,
       room: roomFound,
+      sentAt: new Date(),
     }).save();
-    log('Created message from user %s on room %s', ctx.user?.id, roomId);
+    log('Created message from user %s on room %s', userFound.id, roomId);
 
-    // Get device token of members, excluding the sender
-    const tokens = roomFound.members
-      .map((user) => {
-        return user.devices.map((device) => {
-          if (user.id === userId) {
-            return null;
-          }
-          if (device.platform === 'android') {
-            return device.token;
-          }
-          return null;
-        });
-      })
-      .reduce((prev, curr) => curr.concat(...prev), []);
-
-    // Send notification
-    log('Sending notifications for %s members', tokens.length);
-    sendMessage(
-      {
-        collapseKey: roomId,
-        notification: {
-          title: title || 'Chatty',
-          body: content,
-          icon: 'ic_launcher',
-        },
-        data: {
-          roomId,
-        },
-      },
-      tokens as string[],
-      (err, _res) => {
-        if (err) {
-          log(err);
-        }
-      },
-    );
-
-    // Send to subscription
-    await publish(messageCreated);
-
+    // Send room so other users can sync
+    await publish({ rooms: [roomFound], publisherId: userId });
     return messageCreated;
   }
 
   @Authorized(['read:own:room'])
   @Query(() => GetMessagesResponse)
-  async getMessages(
-    @Ctx() ctx: MyContext,
-    @Args() data: GetMessagesArgs,
-  ): Promise<GetMessagesResponse> {
-    const { id: userId } = ctx.user!;
+  async getMessages(@Ctx() ctx: CustomContext, @Args() data: GetMessagesArgs): Promise<GetMessagesResponse> {
+    const userId = ctx.userId!;
     const { afterDate, roomId, limit } = data;
 
     // Get room by id
@@ -173,18 +122,36 @@ export class MessageResolver {
     return { hasMore, cursor, items: messages };
   }
 
-  @Subscription(() => Message, {
-    topics: MESSAGE_CREATED,
-    filter: ({ args, payload: message, context: { user } }) => {
-      // If the room is being listened and signed user is a member
-      return (
-        args.roomIds?.includes(message.room?.id) &&
-        message.room?.members?.some((e: User) => e.id === user?.id)
-      );
-    },
-  })
-  messageCreated(@Root() message: Message, @Args() _args: MessageCreatedArgs): Message {
-    log('New room message added on room %s', message.room?.id);
-    return message;
-  }
+  // @Subscription(() => Message, {
+  //   topics: MESSAGE_CREATED,
+  //   filter: ({
+  //     args,
+  //     payload: message,
+  //     context: { userId },
+  //   }: ResolverFilterData<Message, MessageCreatedArgs, CustomContext>) => {
+  //     // If the room is being listened and signed user is a member
+  //     return (
+  //       args.roomIds?.includes(message.room?.id) && message.room?.members?.some((e: User) => e.id === userId)
+  //     );
+  //   },
+  // })
+  // messageCreated(@Root() message: Message, @Args() _args: MessageCreatedArgs): Message {
+  //   log('New message added on room %s', message.room?.id);
+  //   return message;
+  // }
+
+  // @Subscription(() => ReadReceipt, {
+  //   topics: READ_RECEIPT_CREATED,
+  //   filter: ({
+  //     args,
+  //     payload: readReceipt,
+  //   }: ResolverFilterData<ReadReceipt, ReadReceiptCreatedArgs, CustomContext>) => {
+  //     // If the message is being listened
+  //     return args.roomIds?.includes(readReceipt.room?.id);
+  //   },
+  // })
+  // readReceiptCreated(@Root() readReceipt: ReadReceipt, @Args() _args: ReadReceiptCreatedArgs): ReadReceipt {
+  //   log('New read receipt added on room %s', readReceipt.room?.id);
+  //   return readReceipt;
+  // }
 }

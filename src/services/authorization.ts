@@ -1,7 +1,10 @@
 import { AccessControl } from 'accesscontrol';
+import { AuthenticationError } from 'apollo-server';
 import { AuthChecker } from 'type-graphql';
 
-import { MyContext } from '../types';
+import User from '!/entities/User';
+
+import { CustomContext } from '../types';
 
 /**
  * In the example below a Guest can create an Account setting all it's properties, but the role.
@@ -36,7 +39,7 @@ const grants = {
   user: {
     account: {
       'create:own': ['*', '!role'],
-      'read:own': ['*', '!password'],
+      'read:own': ['*', '!password', '!tempPassword'],
       'update:own': ['*', '!role'],
       'delete:own': ['*'],
     },
@@ -62,11 +65,11 @@ export const ROLES = ac.getRoles();
 /**
  * Check if user is signed-in, then check if has permission for the actions and resource passed.
  */
-export const authChecker: AuthChecker<MyContext, string> = ({ context }, roles) => {
-  const { user } = context;
+export const authChecker: AuthChecker<CustomContext, string> = async ({ context }, roles) => {
+  const { userId } = context;
 
   // Not signed-in
-  if (!user) {
+  if (!userId) {
     return false;
   }
 
@@ -78,6 +81,12 @@ export const authChecker: AuthChecker<MyContext, string> = ({ context }, roles) 
   // Check for each role passed
   for (const role of roles) {
     const [action, possession, resource] = role.split(':');
+
+    const user = await User.findOne(userId);
+
+    if (!user) {
+      throw new AuthenticationError('User not found');
+    }
 
     // Check role against user's
     const permission = ac.permission({

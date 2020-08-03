@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 
-import clamp from '!/helpers/clamp';
+import clamp from '!/utils/clamp';
 
 // Get salt rounds from env
 export const ROUNDS = parseInt(process.env.SALT_ROUNDS!, 10) || 12;

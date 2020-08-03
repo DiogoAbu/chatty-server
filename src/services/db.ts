@@ -19,7 +19,7 @@ export default async (): Promise<Connection> => {
     cache: true,
     dropSchema: false,
     entities,
-    logging: isDev ? ['error', 'warn', 'migration'] : ['error', 'migration'],
+    logging: 'all',
     logger: 'debug',
     synchronize: isDev,
     migrations: ['migration/*.js'],
