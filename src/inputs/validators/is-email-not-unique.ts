@@ -10,17 +10,20 @@ import User from '!/entities/User';
 
 @ValidatorConstraint({ async: true })
 export class IsEmailNotUniqueConstraint implements ValidatorConstraintInterface {
-  async validate(email: string) {
+  async validate(email: string): Promise<boolean> {
     const found = await User.findOne({ email });
     return !found;
   }
-  defaultMessage(_args: ValidationArguments) {
+  defaultMessage(_args: ValidationArguments): string {
     return 'Email already exists';
   }
 }
 
-export function IsEmailNotUnique(validationOptions?: ValidationOptions) {
-  return (object: object, propertyName: string) => {
+export function IsEmailNotUnique(
+  validationOptions?: ValidationOptions,
+  // eslint-disable-next-line @typescript-eslint/ban-types
+): (object: object, propertyName: string) => void {
+  return (object, propertyName) => {
     registerDecorator({
       target: object.constructor,
       propertyName,

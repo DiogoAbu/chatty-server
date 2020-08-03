@@ -129,6 +129,7 @@ package-*.json
 # Ignore all dotenv files but the example
 .env.*
 !.env.example
+!.env.db
 
 # Do not ignore encrypted secrets
 *.gpg

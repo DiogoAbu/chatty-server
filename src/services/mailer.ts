@@ -11,7 +11,7 @@ const DEFAULT_THEME = 'whiteBlue';
 
 const log = debug.extend('mailer');
 
-export default async function mailer(to: string, code: number) {
+export default async function mailer(to: string, code: number): Promise<void> {
   if (!to || !code) {
     return;
   }
@@ -60,8 +60,10 @@ export default async function mailer(to: string, code: number) {
   // Send mail with defined transport object
   try {
     const mailInfo = await transporter.sendMail({
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       from: `"${COMPANY_NAME}" <${NOREPLY_EMAIL}>`,
       to,
+      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       subject: `Change the password of your ${COMPANY_NAME} account`,
       text:
         `Type the code ${code} in the application to change your account password.\n` +

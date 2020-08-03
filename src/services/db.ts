@@ -1,27 +1,25 @@
-import { createConnection } from 'typeorm';
+import { Connection, createConnection } from 'typeorm';
 
 import entities from '!/entities';
 import debug from '!/services/debug';
 
-const { DATABASE_URL, NODE_ENV, TYPEORM_SSL } = process.env;
-
-const isDev = NODE_ENV !== 'production';
+const { DATABASE_URL, TYPEORM_SSL, TYPEORM_DROP, TYPEORM_SYNC } = process.env;
 
 const log = debug.extend('db');
 
 // When synchronize is true data that use columns that were
 // removed will be dropped, leading to the loss of data.
-export default async () => {
+export default async (): Promise<Connection> => {
   const connection = await createConnection({
     type: 'postgres',
     url: DATABASE_URL,
     ssl: TYPEORM_SSL === 'true',
     cache: true,
-    dropSchema: false,
+    dropSchema: TYPEORM_DROP === 'true',
     entities,
-    logging: isDev ? ['error', 'warn', 'migration'] : ['error', 'migration'],
+    logging: 'all',
     logger: 'debug',
-    synchronize: isDev,
+    synchronize: TYPEORM_SYNC === 'true',
     migrations: ['migration/*.js'],
     cli: {
       migrationsDir: 'migration',
@@ -30,7 +28,7 @@ export default async () => {
 
   log('connected');
 
-  connection.runMigrations();
+  await connection.runMigrations();
 
   return connection;
 };

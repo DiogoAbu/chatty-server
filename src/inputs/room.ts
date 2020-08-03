@@ -1,16 +1,22 @@
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { Field, ID, InputType } from 'type-graphql';
 
-import { messageNotEmpty } from '!/helpers/validation';
-
 @InputType()
 export class CreateRoomInput {
+  @Field(() => ID)
+  @IsOptional()
+  id?: string;
+
   @Field()
   @IsOptional()
   name?: string;
 
+  @Field()
+  @IsOptional()
+  pictureUri?: string;
+
   @Field(() => [ID])
   @IsString({ each: true })
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   recipientsId: string[];
 }

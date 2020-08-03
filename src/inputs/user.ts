@@ -2,88 +2,91 @@ import { IsEmail, IsNotEmpty, IsOptional, Length, Max, Min } from 'class-validat
 import { ArgsType, Field, InputType, Int, ObjectType } from 'type-graphql';
 
 import User from '!/entities/User';
-import { messageLength, messageNotEmpty } from '!/helpers/validation';
+import { messageLength } from '!/utils/validation';
 
 import { IsEmailNotUnique } from './validators/is-email-not-unique';
 
 @InputType()
 export class CreateAccountInput implements Partial<User> {
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
-  @Length(2, 100, { message: messageLength })
-  name: string;
+  @IsOptional()
+  name?: string;
 
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
-  @IsEmail(undefined, { message: 'Must be a valid email' })
   @IsEmailNotUnique()
+  @IsEmail(undefined, { message: 'Must be a valid email' })
+  @IsNotEmpty()
   email: string;
 
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
   @Length(2, undefined, { message: messageLength })
+  @IsNotEmpty()
   password: string;
+
+  @Field()
+  @IsOptional()
+  pictureUri?: string;
 }
 
 @InputType()
 export class SignInInput implements Partial<User> {
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
-  @Length(2, 100, { message: messageLength })
+  @IsEmail(undefined, { message: 'Must be a valid email' })
+  @IsNotEmpty()
   email: string;
 
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
   @Length(2, undefined, { message: messageLength })
+  @IsNotEmpty()
   password: string;
 }
 
 @InputType()
 export class ForgotPasswordInput implements Partial<User> {
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
   @IsEmail()
+  @IsNotEmpty()
   email: string;
 }
 
 @InputType()
 export class ChangePasswordInput implements Partial<User> {
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   code: number;
 
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
   @Length(2, undefined, { message: messageLength })
+  @IsNotEmpty()
   password: string;
 }
 
 @InputType()
 export class ListUsersWhere {
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   name: string;
 
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   email: string;
 }
 
 @InputType()
 export class ListUsersOrder {
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   name: 'ASC' | 'DESC';
 
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   email: 'ASC' | 'DESC';
 }
 
 @ArgsType()
 export class ListUsersArgs {
   @Field()
-  @IsNotEmpty({ message: messageNotEmpty })
+  @IsNotEmpty()
   where: ListUsersWhere;
 
   @Field()

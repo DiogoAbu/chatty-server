@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/restrict-template-expressions */
 import { Theme } from '!/services/mail-template/themes';
 
 const { COMPANY_NAME, COMPANY_LOGO_BASE64, SITE_URL } = process.env;
 
-export default function plainCard(code: number, theme: Theme) {
+export default function plainCard(code: number, theme: Theme): string {
   return `
   <!DOCTYPE html>
   <html>

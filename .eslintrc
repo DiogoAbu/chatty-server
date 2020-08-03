@@ -80,12 +80,56 @@
         "@typescript-eslint/ban-ts-comment": 0,
         "@typescript-eslint/ban-ts-ignore": 0,
         "@typescript-eslint/brace-style": [2, "1tbs"],
-        "@typescript-eslint/camelcase": 2,
         "@typescript-eslint/explicit-function-return-type": 0,
+        "@typescript-eslint/explicit-module-boundary-types": [
+          2,
+          {
+            "allowArgumentsExplicitlyTypedAsAny": true
+          }
+        ],
+        "@typescript-eslint/naming-convention": [
+          2,
+          {
+            "format": ["camelCase"],
+            "selector": "default"
+          },
+          {
+            "format": ["camelCase", "PascalCase", "UPPER_CASE"],
+            "selector": "variable"
+          },
+          {
+            "format": ["camelCase", "PascalCase", "UPPER_CASE"],
+            "selector": "function"
+          },
+          {
+            "format": ["camelCase", "PascalCase"],
+            "leadingUnderscore": "allow",
+            "selector": "parameter"
+          },
+          {
+            "format": ["camelCase"],
+            "leadingUnderscore": "allow",
+            "modifiers": ["private"],
+            "selector": "memberLike"
+          },
+          {
+            "format": ["PascalCase"],
+            "selector": "typeLike"
+          },
+          {
+            "format": ["camelCase", "snake_case", "PascalCase", "UPPER_CASE"],
+            "leadingUnderscore": "allow",
+            "selector": "property"
+          }
+        ],
         "@typescript-eslint/no-empty-interface": 0,
         "@typescript-eslint/no-explicit-any": 0,
         "@typescript-eslint/no-non-null-assertion": 0,
         "@typescript-eslint/no-unnecessary-type-assertion": 0,
+        "@typescript-eslint/no-unsafe-assignment": 0,
+        "@typescript-eslint/no-unsafe-call": 0,
+        "@typescript-eslint/no-unsafe-member-access": 0,
+        "@typescript-eslint/no-unsafe-return": 0,
         "@typescript-eslint/no-unused-vars": 0,
         "@typescript-eslint/no-use-before-define": [
           2,
@@ -111,24 +155,13 @@
         "jest": true,
         "jest/globals": true
       },
-      "files": [
-        "jest.setup.js",
-        "*.{spec,test}.{js,ts,tsx}",
-        "**/__{mocks,tests}__/**/*.{js,ts,tsx}"
-      ]
+      "files": ["jest.setup.js", "*.{spec,test}.{js,ts,tsx}", "**/__{mocks,tests}__/**/*.{js,ts,tsx}"]
     }
   ],
   "parserOptions": {
     "sourceType": "module"
   },
-  "plugins": [
-    "simple-import-sort",
-    "import",
-    "unused-imports",
-    "eslint-comments",
-    "prettier",
-    "jest"
-  ],
+  "plugins": ["simple-import-sort", "import", "unused-imports", "eslint-comments", "prettier", "jest"],
   "root": true,
   "rules": {
     "block-scoped-var": 0,
@@ -301,7 +334,7 @@
     "no-underscore-dangle": [
       2,
       {
-        "allow": ["_raw", "_status", "_changed"]
+        "allow": ["_raw", "_status", "_changed", "__uuid"]
       }
     ],
     "no-unexpected-multiline": 2,
@@ -317,7 +350,12 @@
       }
     ],
     "no-var": 2,
-    "no-void": 1,
+    "no-void": [
+      1,
+      {
+        "allowAsStatement": true
+      }
+    ],
     "no-warning-comments": 0,
     "no-with": 1,
     "object-curly-newline": 0,
