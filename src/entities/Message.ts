@@ -53,11 +53,11 @@ export default class Message extends BaseEntity {
   room: Room;
 
   @Field(() => [ReadReceipt])
-  @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.message)
+  @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.message, { onDelete: 'CASCADE' })
   readReceipts: ReadReceipt[];
 
   @Field(() => [Attachment])
-  @OneToMany(() => Attachment, (attachment) => attachment.message)
+  @OneToMany(() => Attachment, (attachment) => attachment.message, { onDelete: 'CASCADE' })
   attachments: Attachment[];
 
   @Column({ default: false })

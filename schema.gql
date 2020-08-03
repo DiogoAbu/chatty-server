@@ -5,6 +5,7 @@
 
 type Attachment {
   cipherUri: String
+  filename: String
   height: Float
   id: ID
   message: Message
@@ -18,6 +19,7 @@ type AttachmentChanges {
   _changed: String
   _status: String
   cipherUri: String
+  filename: String
   height: Float
   id: ID
   messageId: ID
@@ -31,6 +33,7 @@ input AttachmentChangesInput {
   _changed: String
   _status: String
   cipherUri: String
+  filename: String
   height: Float
   id: ID
   messageId: ID

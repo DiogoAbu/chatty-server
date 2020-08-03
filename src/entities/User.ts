@@ -98,12 +98,12 @@ export default class User extends BaseEntity {
 
   // ONE User can have MANY Devices
   @Field(() => [Device])
-  @OneToMany(() => Device, (device) => device.user)
+  @OneToMany(() => Device, (device) => device.user, { onDelete: 'CASCADE' })
   devices: Device[];
 
   // ONE User can have MANY Room preferences
   @Field(() => [RoomPreferences])
-  @OneToMany(() => RoomPreferences, (roomPreferences) => roomPreferences.user)
+  @OneToMany(() => RoomPreferences, (roomPreferences) => roomPreferences.user, { onDelete: 'CASCADE' })
   roomPreferences: RoomPreferences[];
 
   @Column({ default: false })

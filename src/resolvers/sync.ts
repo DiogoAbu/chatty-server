@@ -209,6 +209,7 @@ export class SyncResolver {
                 return {
                   id: attachment.id,
                   cipherUri: attachment.cipherUri,
+                  filename: attachment.filename,
                   type: attachment.type,
                   width: attachment.width,
                   height: attachment.height,
@@ -633,6 +634,7 @@ export class SyncResolver {
       const handleAttachments = async ({
         id,
         cipherUri,
+        filename,
         type,
         width,
         height,
@@ -661,6 +663,7 @@ export class SyncResolver {
         const attachment = await Attachment.create({
           id,
           cipherUri,
+          filename,
           type,
           width,
           height,

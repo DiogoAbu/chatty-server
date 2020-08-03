@@ -35,27 +35,27 @@ export default class Room extends BaseEntity {
 
   // MANY Rooms can have MANY Users
   @Field(() => [User])
-  @ManyToMany(() => User, (user) => user.rooms)
+  @ManyToMany(() => User, (user) => user.rooms, { onDelete: 'CASCADE' })
   @JoinTable()
   members: User[];
 
   // ONE Room can have MANY Messages
   @Field(() => [Message])
-  @OneToMany(() => Message, (message) => message.room)
+  @OneToMany(() => Message, (message) => message.room, { onDelete: 'CASCADE' })
   messages: Message[];
 
   // ONE Room can have MANY Messages
   @Field(() => [ReadReceipt])
-  @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.room)
+  @OneToMany(() => ReadReceipt, (readReceipt) => readReceipt.room, { onDelete: 'CASCADE' })
   readReceipts: ReadReceipt[];
 
   @Field(() => [Attachment])
-  @OneToMany(() => Attachment, (attachment) => attachment.room)
+  @OneToMany(() => Attachment, (attachment) => attachment.room, { onDelete: 'CASCADE' })
   attachments: Attachment[];
 
   // ONE Room can have MANY Room preferences
   @Field(() => [RoomPreferences])
-  @OneToMany(() => RoomPreferences, (roomPreferences) => roomPreferences.room)
+  @OneToMany(() => RoomPreferences, (roomPreferences) => roomPreferences.room, { onDelete: 'CASCADE' })
   roomPreferences: RoomPreferences[];
 
   @Column({ default: false })

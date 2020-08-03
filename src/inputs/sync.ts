@@ -145,6 +145,9 @@ export class AttachmentChanges extends DatabaseKeys {
   cipherUri?: string;
 
   @Field()
+  filename?: string;
+
+  @Field()
   type?: string;
 
   @Field()

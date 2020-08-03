@@ -28,6 +28,10 @@ export default class Attachment extends BaseEntity {
   @Column()
   cipherUri: string;
 
+  @Field()
+  @Column()
+  filename: string;
+
   @Field(() => AttachmentType)
   @Column({ type: 'enum', enum: AttachmentType })
   type: AttachmentType;
